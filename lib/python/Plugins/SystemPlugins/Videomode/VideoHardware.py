@@ -58,7 +58,7 @@ class VideoHardware:
 								"60Hz": {60: "2160p"},
 								"multi": {50: "2160p50", 60: "2160p"},
 								"auto": {50: "2160p50", 60: "2160p", 24: "2160p24"}}
-	if HardwareInfo().get_device_name() in ("dm900", "dm920", "dreamone", "dreamtwo"):
+	if HardwareInfo().get_device_name() in ("dm900", "dm920"):
 		rates["2160p"] = {"50Hz": {50: "2160p50"}, "60Hz": {60: "2160p60"}, "multi": {50: "2160p50", 60: "2160p60"}, "auto": {50: "2160p50", 60: "2160p60", 24: "2160p24"}}
 	else:
 		rates["2160p"] = {"50Hz": {50: "2160p50"}, "60Hz": {60: "2160p"}, "multi": {50: "2160p50", 60: "2160p"}, "auto": {50: "2160p50", 60: "2160p", 24: "2160p24"}}
