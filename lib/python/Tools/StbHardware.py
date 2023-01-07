@@ -2,16 +2,21 @@ from os import path
 from fcntl import ioctl
 from struct import pack, unpack
 from time import time, localtime, gmtime
+from Tools.HardwareInfo import HardwareInfo
 
 
 def getFPVersion():
 	ret = None
 	try:
-		ret = open("/proc/stb/fp/version", "r").read()
+		if  HardwareInfo().get_device_model() in ('dm900','dm920'):
+			ret = open("/proc/stb/fp/version", "r").read()
+		else:
+			ret = long(open("/proc/stb/fp/version", "r").read())
 	except IOError:
 		try:
 			fp = open("/dev/dbox/fp0")
 			ret = ioctl(fp.fileno(), 0)
+			fp.close()
 		except IOError:
 			try:
 				ret = open("/sys/firmware/devicetree/base/bolt/tag", "r").read().rstrip("\0")
