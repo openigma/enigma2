@@ -8,7 +8,6 @@ from Components.NimManager import nimmanager
 from Components.Renderer.FrontpanelLed import ledPatterns, PATTERN_ON, PATTERN_OFF, PATTERN_BLINK
 from Components.ServiceList import refreshServiceList
 from Components.SystemInfo import SystemInfo
-from os.path import exists, islink, join as pathjoin, normpath
 import os
 import time
 
@@ -145,7 +144,7 @@ def InitUsageConfig():
 	config.usage.leave_movieplayer_onExit = ConfigSelection(default="popup", choices=[
 		("no", _("no")), ("popup", _("With popup")), ("without popup", _("Without popup")), ("movielist", _("Return to movie list"))])
 
-	config.usage.setup_level = ConfigSelection(default="expert", choices=[
+	config.usage.setup_level = ConfigSelection(default="simple", choices=[
 		("simple", _("Normal")),
 		("intermediate", _("Advanced")),
 		("expert", _("Expert"))])
@@ -649,8 +648,8 @@ def InitUsageConfig():
 		("twn hkn", _("Chinese - Traditional")),
 		("ces cze", _("Czech")),
 		("dan", _("Danish")),
-		("dut ndl nld Dutch", _("Dutch")),
-		("eng Englisch", _("English")),
+		("dut ndl nld", _("Dutch")),
+		("eng", _("English")),
 		("est", _("Estonian")),
 		("fin", _("Finnish")),
 		("fra fre", _("French")),
