@@ -603,7 +603,7 @@ msgid "AAC transcoding"
 msgstr "AAC transcoding"
 
 msgid "AAC+ downmix"
-msgstr "AAC downmix"
+msgstr "AAC+ downmix"
 
 msgid "AC3"
 msgstr "AC3"
@@ -633,10 +633,10 @@ msgid "Abort alternatives edit"
 msgstr "Sluit de bewerking van de alternatieven af"
 
 msgid "Abort bouquet edit"
-msgstr "Bouquet bewerken afsluiten"
+msgstr "Bouquet bewerken beëindigen"
 
 msgid "Abort favourites edit"
-msgstr "Favorieten bewerken afsluiten"
+msgstr "Favorieten bewerken beëindigen"
 
 msgid "About"
 msgstr "Uw ontvanger"
@@ -645,7 +645,7 @@ msgid "Access point:"
 msgstr "Access point:"
 
 msgid "Activate HbbTV (Redbutton)"
-msgstr "Activeer HBBTV (Rode toets)"
+msgstr "Activeer HbbTV (Rode toets)"
 
 msgid "Activate Picture in Picture"
 msgstr "Activeer Picture In Picture"
@@ -1075,16 +1075,16 @@ msgstr "Audio PID"
 
 #, python-format
 msgid "Audio PID%s, codec & lang"
-msgstr "Audio PID%s, codec & lang"
+msgstr "Audio PID%s, codec & taal"
 
 msgid "Audio PID, codec & lang"
-msgstr "Audio PID, codec & lang"
+msgstr "Audio PID, codec & taal"
 
 msgid "Audio auto volume level"
 msgstr "Automatisch volume"
 
 msgid "Audio description for the visually impaired"
-msgstr "Audiobeschrijving voor visueel gehandicapten"
+msgstr "Audiobeschrijving voor blinden en slechtzienden"
 
 msgid "Audio language selection 1"
 msgstr "Audio. Taalkeuze 1"
@@ -1591,7 +1591,7 @@ msgid "Cayman Islands"
 msgstr "Cayman eilanden"
 
 msgid "Center DVB subtitles"
-msgstr "Centreer ondertitels"
+msgstr "Centreer DVB ondertitels"
 
 msgid "Center time-labels and remove date"
 msgstr "Centreer de tijds-labels en verwijder de datum"
@@ -2632,7 +2632,7 @@ msgid "DVB CI Delay"
 msgstr "DVB CI vertraging"
 
 msgid "DVB Subtitles PID & lang"
-msgstr "DVD ondertitels PID & lang"
+msgstr "DVB ondertitels PID & taal"
 
 msgid "DVB driver version: "
 msgstr "DVB driver versie: "
@@ -3492,7 +3492,7 @@ msgid "Enter an URL where alternative images could be listed for FlashImage"
 msgstr "Hier kunt u een URL opgeven waar alternatieve images t.b.v. Flashimage te vinden zijn. "
 
 msgid "Enter if you are in the east or west hemisphere."
-msgstr "Geef aan of je je in het oostelijk of westelijk halfrond bevindt."
+msgstr "Geef aan of u zich in het oostelijk of westelijk halfrond bevindt."
 
 msgid "Enter if you are north or south of the equator."
 msgstr "Geef aan of u zich noordelijk of zuidelijk van de evenaar bevindt."
@@ -4535,6 +4535,9 @@ msgstr "Indien geactiveerd en de film is afgelopen, dan zal na terugkeer naar he
 
 msgid "If set as 'Yes', then audiofiles are played in 'list mode' only, instead in full screen player."
 msgstr "Indien gekozen wordt voor 'Ja', dan zal muziek afgespeeld worden in de 'lijst modus' i.p.v met volledig beeld."
+
+msgid "If set to 'yes', allows you to use timeshift with alternative audio plugins."
+msgstr "Indien geactiveerd, kunt u timeshift gebruiken met alternatieve audio-plugins."
 
 msgid "If set to 'yes' signal values (SNR, etc) will be calculated from API V3. This is an old API version that has now been superseded."
 msgstr "Indien geactiveerd zullen de waardes (SNR, etc) worden berekend vanaf de API V3. Dit is de oude API versie die nu is vervangen."
@@ -5853,7 +5856,7 @@ msgid "Not associated"
 msgstr "Geen verband"
 
 msgid "Not defined"
-msgstr "Niet vestgelegd"
+msgstr "Niet vastgelegd"
 
 #, python-format
 msgid "Not enough disk space. Please free up some disk space and try again. (%(req)d MB required, %(avail)d MB available)"
@@ -8509,6 +8512,9 @@ msgstr "Sla de lege kanalen over"
 msgid "Skip internet connection check (disables automatic package installation)"
 msgstr "Sla deze over. (De automatische installatie van pakketten vervalt)"
 
+msgid "Skip jumping to live TV while timeshifting with plugins"
+msgstr "Live TV overslaan tijdens het timeshiften met plugins"
+
 msgid "Sleep timer"
 msgstr "Sleeptimer"
 
@@ -9176,7 +9182,7 @@ msgid "TXT PID"
 msgstr "TXT PID"
 
 msgid "TXT Subtitles page & lang"
-msgstr "TXT Ondertitels page & lang"
+msgstr "TXT Ondertitels pagina & taal"
 
 msgid "Table of contents for collection"
 msgstr "Inhoudsoverzicht voor de verzameling"
