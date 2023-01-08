@@ -54,9 +54,9 @@ class VideoHardware:
 								"auto": {50: "2160p25", 60: "2160p30", 24: "2160p24"}}
 
 	rates["2160p"] = {"50Hz": {50: "2160p50"},
-								"60Hz": {60: "2160p"},
-								"multi": {50: "2160p50", 60: "2160p"},
-								"auto": {50: "2160p50", 60: "2160p", 24: "2160p24"}}
+								"60Hz": {60: "2160p60"},
+								"multi": {50: "2160p50", 60: "2160p60"},
+								"auto": {50: "2160p50", 60: "2160p60", 24: "2160p24"}}
 
 	rates["PC"] = {
 		"1024x768": {60: "1024x768"}, # not possible on DM7025
@@ -279,14 +279,11 @@ class VideoHardware:
 		portlist = self.getPortList()
 		for port in portlist:
 			descr = port
-			if descr == "DVI" and has_hdmi:
-				descr = "HDMI"
-			elif descr == "DVI-PC" and has_hdmi:
-				descr = "HDMI-PC"
-			if "HDMI" in descr:
-				lst.insert(0, (port, descr))
-			else:
-				lst.append((port, descr))
+			if descr == 'DVI' and has_hdmi:
+				descr = 'HDMI'
+			elif descr == 'DVI-PC' and has_hdmi:
+				descr = 'HDMI-PC'
+			lst.append((port, descr))
 
 			# create list of available modes
 			modes = self.getModeList(port)
@@ -295,11 +292,11 @@ class VideoHardware:
 			for (mode, rates) in modes:
 				ratelist = []
 				for rate in rates:
-					if rate == "auto":
+					if rate in ("auto"):
 						if SystemInfo["Has24hz"]:
-							ratelist.append((rate, mode == "2160p30" and "auto (25Hz/30Hz/24Hz)" or "auto (50Hz/60Hz/24Hz)"))
+							ratelist.append((rate, rate))
 					else:
-						ratelist.append((rate, rate == "multi" and (mode == "2160p30" and "multi (25Hz/30Hz)" or "multi (50Hz/60Hz)") or rate))
+						ratelist.append((rate, rate))
 				config.av.videorate[mode] = ConfigSelection(choices=ratelist)
 		config.av.videoport = ConfigSelection(choices=lst)
 
