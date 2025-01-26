@@ -42,12 +42,15 @@ is usually caused by not marking PSignals as immutable.
 #include <lib/base/eerror.h>
 #include <lib/base/message.h>
 #include <lib/base/e2avahi.h>
+#include <lib/base/internetcheck.h>
+#include <lib/base/profile.h>
 #include <lib/driver/rc.h>
 #include <lib/driver/rcinput_swig.h>
 #include <lib/service/event.h>
 #include <lib/service/iservice.h>
 #include <lib/service/service.h>
 #include <lib/service/servicedvb.h>
+#include <lib/service/servicefs.h>
 #include <lib/service/servicepeer.h>
 #include <lib/gdi/fb.h>
 #include <lib/gdi/font.h>
@@ -61,6 +64,7 @@ is usually caused by not marking PSignals as immutable.
 #include <lib/gui/einputstring.h>
 #include <lib/gui/einputnumber.h>
 #include <lib/gui/epixmap.h>
+#include <lib/gui/erectangle.h>
 #include <lib/gui/ebutton.h>
 #include <lib/gui/ewindow.h>
 #include <lib/gui/ewidgetdesktop.h>
@@ -78,7 +82,8 @@ is usually caused by not marking PSignals as immutable.
 #include <lib/gui/elistboxcontent.h>
 #include <lib/gui/esubtitle.h>
 #include <lib/service/listboxservice.h>
-#include <lib/nav/pcore.h>
+#include <lib/service/elistboxservicecontent.h>
+#include <lib/nav/core.h>
 #include <lib/actions/action.h>
 #include <lib/gdi/gfont.h>
 #include <lib/gdi/epng.h>
@@ -101,6 +106,7 @@ is usually caused by not marking PSignals as immutable.
 #include <lib/components/file_eraser.h>
 #include <lib/components/tuxtxtapp.h>
 #include <lib/driver/avswitch.h>
+#include <lib/driver/avcontrol.h>
 #include <lib/driver/hdmi_cec.h>
 #include <lib/driver/rfmod.h>
 #include <lib/driver/misc_options.h>
@@ -113,6 +119,9 @@ is usually caused by not marking PSignals as immutable.
 #include <lib/python/python_helpers.h>
 #include <lib/gdi/picload.h>
 #include <lib/dvb/fcc.h>
+#include <lib/gdi/accel.h>
+#include <include/hardwaredb.h>
+#include <lib/base/esettings.h>
 %}
 
 %feature("ref")   iObject "$this->AddRef(); /* eDebug(\"AddRef (%s:%d)!\", __FILE__, __LINE__); */ "
@@ -127,7 +136,11 @@ is usually caused by not marking PSignals as immutable.
  %fragment("t_out_helper"{Type},"header",
      fragment="t_output_helper") {}
  %typemap(argout,fragment="t_out_helper"{Type}) Type *OUTPUT, Type &OUTPUT
+#if SWIG_VERSION >= 0x040300
+    "$result = SWIG_Python_AppendOutput($result, (SWIG_NewPointerObj((void*)($1), $1_descriptor, 1)), 1);"
+#else
    "$result = t_output_helper($result, (SWIG_NewPointerObj((void*)($1), $1_descriptor, 1)));"
+#endif
 %enddef
 
 %define %typemap_output_ptr(Type)
@@ -138,7 +151,11 @@ is usually caused by not marking PSignals as immutable.
      fragment="t_output_helper") {}
  %typemap(argout,fragment="t_out_helper"{Type}) Type *OUTPUT, Type &OUTPUT
 		// generate None if smartpointer is NULL
+#if SWIG_VERSION >= 0x040300
+   "$result = SWIG_Python_AppendOutput($result, ((*$1) ? SWIG_NewPointerObj((void*)($1), $1_descriptor, 1) : (delete $1, Py_INCREF(Py_None), Py_None)), 1);"
+#else
    "$result = t_output_helper($result, ((*$1) ? SWIG_NewPointerObj((void*)($1), $1_descriptor, 1) : (delete $1, Py_INCREF(Py_None), Py_None)));"
+#endif
 %enddef
 
 
@@ -162,11 +179,13 @@ typedef long time_t;
 %include <lib/base/smartptr.h>
 %include <lib/service/event.h>
 %include <lib/service/iservice.h>
+%include <lib/service/servicefs.h>
 %include <lib/service/service.h>
 %include <lib/base/e2avahi.h>
 %include <lib/service/servicepeer.h>
 
 // TODO: embed these...
+%immutable eInternetCheck::callback;
 %immutable ePicLoad::PictureData;
 %immutable eButton::selected;
 %immutable eInput::changed;
@@ -182,7 +201,7 @@ typedef long time_t;
 %immutable eDVBCI_UI::ciStateChanged;
 %immutable eSocket_UI::socketStateChanged;
 %immutable eDVBResourceManager::frontendUseMaskChanged;
-%immutable eAVSwitch::vcr_sb_notifier;
+%immutable eAVControl::vcr_sb_notifier;
 %immutable eHdmiCEC::messageReceived;
 %immutable eHdmiCEC::addressChanged;
 %immutable ePythonMessagePump::recv_msg;
@@ -198,6 +217,7 @@ typedef long time_t;
 %immutable iDVBChannel::receivedTsidOnid;
 %immutable eDVBSatelliteEquipmentControl::slotRotorSatPosChanged;
 %include <lib/base/message.h>
+%include <lib/base/internetcheck.h>
 %include <lib/driver/rc.h>
 %include <lib/driver/rcinput_swig.h>
 %include <lib/gdi/fb.h>
@@ -213,6 +233,7 @@ typedef long time_t;
 %include <lib/gui/einputstring.h>
 %include <lib/gui/einputnumber.h>
 %include <lib/gui/epixmap.h>
+%include <lib/gui/erectangle.h>
 %include <lib/gui/ecanvas.h>
 %include <lib/gui/ebutton.h>
 %include <lib/gui/ewindow.h>
@@ -228,7 +249,8 @@ typedef long time_t;
 %include <lib/gui/evideo.h>
 %include <lib/gui/esubtitle.h>
 %include <lib/service/listboxservice.h>
-%include <lib/nav/pcore.h>
+%include <lib/service/elistboxservicecontent.h>
+%include <lib/nav/core.h>
 %include <lib/actions/action.h>
 %include <lib/gdi/gfont.h>
 %include <lib/gdi/epng.h>
@@ -248,6 +270,7 @@ typedef long time_t;
 %include <lib/components/file_eraser.h>
 %include <lib/components/tuxtxtapp.h>
 %include <lib/driver/avswitch.h>
+%include <lib/driver/avcontrol.h>
 %include <lib/driver/hdmi_cec.h>
 %include <lib/driver/rfmod.h>
 %include <lib/driver/misc_options.h>
@@ -262,6 +285,9 @@ typedef long time_t;
 %include <lib/gdi/picload.h>
 %include <lib/dvb/fcc.h>
 %include <lib/dvb/streamserver.h>
+%include <lib/gdi/accel.h>
+%include <lib/base/esettings.h>
+
 /**************  eptr  **************/
 
 /**************  signals  **************/
@@ -436,6 +462,16 @@ void setFCCEnable(int enable)
 }
 %}
 
+bool isFBCLink(int);
+%{
+bool isFBCLink(int fe)
+{
+        eFBCTunerManager *mgr = eFBCTunerManager::getInstance();
+        if (mgr) return mgr->IsFBCLink(fe);
+        return false;
+}
+%}
+
 PyObject *getFontFaces();
 %{
 PyObject *getFontFaces()
@@ -448,6 +484,42 @@ PyObject *getFontFaces()
 }
 %}
 
+void setACCELDebug(int);
+%{
+void setACCELDebug(int enable)
+{
+	gAccel::getInstance()->setAccelDebug(enable);
+}
+%}
+
+PyObject *getDeviceDB();
+%{
+PyObject *getDeviceDB()
+{
+	ePyObject result = PyDict_New();
+	for (const auto & [ key, value ] : HardwareDB) {
+		PutToDict(result, key.c_str(), value.c_str());
+	}
+    return result;
+}
+%}
+
+void eProfileDone();
+%{
+void eProfileDone()
+{
+	eProfile::getInstance().close();
+}
+%}
+void eProfileWrite(const char*);
+%{
+void eProfileWrite(const char* checkPoint)
+{
+	eProfile::getInstance().write(checkPoint);
+}
+%}
+
+
 /************** temp *****************/
 
 	/* need a better place for this, i agree. */
@@ -456,24 +528,36 @@ extern void runMainloop();
 extern void quitMainloop(int exit_code);
 extern eApplication *getApplication();
 extern int getPrevAsciiCode();
+extern int getBsodCounter();
+extern void resetBsodCounter();
 extern void addFont(const char *filename, const char *alias, int scale_factor, int is_replacement, int renderflags = 0);
 extern const char *getEnigmaVersionString();
 extern const char *getBoxType();
+extern const char *getGStreamerVersionString();
 extern void dump_malloc_stats(void);
 extern void pauseInit(void);
 extern void resumeInit(void);
+extern int checkInternetAccess(const char* host, int timeout = 3);
+extern int getE2Flags();
+extern bool checkLogin(const char *user, const char *pwd);
 %}
 
 extern void addFont(const char *filename, const char *alias, int scale_factor, int is_replacement, int renderflags = 0);
 extern int getPrevAsciiCode();
+extern int getBsodCounter();
+extern void resetBsodCounter();
 extern void runMainloop();
 extern void quitMainloop(int exit_code);
 extern eApplication *getApplication();
 extern const char *getEnigmaVersionString();
 extern const char *getBoxType();
+extern const char *getGStreamerVersionString();
 extern void dump_malloc_stats(void);
 extern void pauseInit(void);
 extern void resumeInit(void);
+extern int checkInternetAccess(const char* host, int timeout = 3);
+extern int getE2Flags();
+extern bool checkLogin(const char *user, const char *pwd);
 
 %include <lib/python/python_console.i>
 %include <lib/python/python_base.i>

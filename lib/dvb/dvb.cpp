@@ -5,6 +5,7 @@
 
 #include <lib/base/eerror.h>
 #include <lib/base/estring.h>
+#include <lib/base/esimpleconfig.h>
 #include <lib/base/wrappers.h>
 #include <lib/dvb/cahandler.h>
 #include <lib/dvb/idvb.h>
@@ -114,8 +115,50 @@ eDVBResourceManager::eDVBResourceManager()
 
 	setUsbTuner();
 
-	eDebug("[eDVBResourceManager] found %zd adapter, %zd frontends(%zd sim) and %zd demux",
-		m_adapter.size(), m_frontend.size(), m_simulate_frontend.size(), m_demux.size());
+	int fd = open("/proc/stb/info/model", O_RDONLY);
+	char tmp[16];
+	int rd = fd >= 0 ? read(fd, tmp, sizeof(tmp)) : 0;
+	if (fd >= 0)
+		close(fd);
+
+	if (!strncmp(tmp, "dm8000\n", rd))
+		m_boxtype = DM8000;
+	else if (!strncmp(tmp, "dm800\n", rd))
+		m_boxtype = DM800;
+	else if (!strncmp(tmp, "dm500hd\n", rd))
+		m_boxtype = DM500HD;
+	else if (!strncmp(tmp, "dm800se\n", rd))
+		m_boxtype = DM800SE;
+	else if (!strncmp(tmp, "dm7020hd\n", rd))
+		m_boxtype = DM7020HD;
+	else if (!strncmp(tmp, "dm7080\n", rd))
+		m_boxtype = DM7080;
+	else if (!strncmp(tmp, "dm820\n", rd))
+		m_boxtype = DM820;
+	else if (!strncmp(tmp, "dm520\n", rd))
+		m_boxtype = DM520;
+	else if (!strncmp(tmp, "dm525\n", rd))
+		m_boxtype = DM525;
+	else if (!strncmp(tmp, "dm900\n", rd))
+		m_boxtype = DM900;
+	else if (!strncmp(tmp, "dm920\n", rd))
+		m_boxtype = DM920;
+	else if (!strncmp(tmp, "one\n", rd))
+		m_boxtype = DREAMONE;
+	else if (!strncmp(tmp, "two\n", rd))
+		m_boxtype = DREAMTWO;
+	else if (!strncmp(tmp, "seven\n", rd))
+		m_boxtype = DREAMSEVEN;
+	else {
+		eDebug("[eDVBResourceManager] boxtype detection via /proc/stb/info not possible... use fallback via demux count!");
+		if (m_demux.size() == 3)
+			m_boxtype = DM800;
+		else
+			m_boxtype = DM8000;
+	}
+
+	eDebug("[eDVBResourceManager] found %zd adapter, %zd frontends(%zd sim) and %zd demux, boxtype %d",
+		m_adapter.size(), m_frontend.size(), m_simulate_frontend.size(), m_demux.size(), m_boxtype);
 
 	m_fbcmng = new eFBCTunerManager(instance);
 
@@ -324,7 +367,8 @@ eDVBUsbAdapter::eDVBUsbAdapter(int nr)
 		frontend = -1;
 		goto error;
 	}
-
+#ifdef HAVE_OLDE2_API
+#if defined DTV_ENUM_DELSYS
 	prop[0].cmd = DTV_ENUM_DELSYS;
 	memset(prop[0].u.buffer.data, 0, sizeof(prop[0].u.buffer.data));
 	prop[0].u.buffer.len = 0;
@@ -333,7 +377,17 @@ eDVBUsbAdapter::eDVBUsbAdapter(int nr)
 
 	if (ioctl(frontend, FE_GET_PROPERTY, &props) < 0)
 		eDebug("[eDVBUsbAdapter] FE_GET_PROPERTY DTV_ENUM_DELSYS failed %m");
+#endif
+#else
+	prop[0].cmd = DTV_ENUM_DELSYS;
+	memset(prop[0].u.buffer.data, 0, sizeof(prop[0].u.buffer.data));
+	prop[0].u.buffer.len = 0;
+	props.num = 1;
+	props.props = prop;
 
+	if (ioctl(frontend, FE_GET_PROPERTY, &props) < 0)
+		eDebug("[eDVBUsbAdapter] FE_GET_PROPERTY DTV_ENUM_DELSYS failed %m");
+#endif
 	::close(frontend);
 	frontend = -1;
 
@@ -372,7 +426,11 @@ eDVBUsbAdapter::eDVBUsbAdapter(int nr)
 	while (vtunerFd < 0)
 	{
 		snprintf(filename, sizeof(filename), "/dev/misc/vtuner%d", vtunerid);
-		if (::access(filename, F_OK) < 0) break;
+		if (::access(filename, F_OK) < 0)
+		{
+			eDebug("[eDVBUsbAdapter] '%s' not found -> stop here!", filename);
+			break;
+		}
 		vtunerFd = open(filename, O_RDWR | O_CLOEXEC);
 		if (vtunerFd < 0)
 		{
@@ -433,8 +491,15 @@ eDVBUsbAdapter::eDVBUsbAdapter(int nr)
 	ioctl(vtunerFd, VTUNER_SET_NAME, name);
 	ioctl(vtunerFd, VTUNER_SET_TYPE, type);
 	ioctl(vtunerFd, VTUNER_SET_FE_INFO, &fe_info);
+#ifdef HAVE_OLDE2_API
+#if defined DTV_ENUM_DELSYS
 	if (prop[0].u.buffer.len > 0)
 		ioctl(vtunerFd, VTUNER_SET_DELSYS, prop[0].u.buffer.data);
+#endif
+#else
+	if (prop[0].u.buffer.len > 0)
+		ioctl(vtunerFd, VTUNER_SET_DELSYS, prop[0].u.buffer.data);
+#endif
 	ioctl(vtunerFd, VTUNER_SET_HAS_OUTPUTS, "no");
 	ioctl(vtunerFd, VTUNER_SET_ADAPTER, nr);
 
@@ -818,10 +883,18 @@ bool eDVBResourceManager::frontendIsCompatible(int index, const char *type)
 			}
 			else if (!strcmp(type, "DVB-C"))
 			{
+#ifdef HAVE_OLDE2_API
+#if DVB_API_VERSION > 5 || DVB_API_VERSION == 5 && DVB_API_VERSION_MINOR >= 6
+				return i->m_frontend->supportsDeliverySystem(SYS_DVBC_ANNEX_A, false) || i->m_frontend->supportsDeliverySystem(SYS_DVBC_ANNEX_C, false);
+#else
+				return i->m_frontend->supportsDeliverySystem(SYS_DVBC_ANNEX_AC, false);
+#endif
+#else
 #if defined SYS_DVBC_ANNEX_A
 				return i->m_frontend->supportsDeliverySystem(SYS_DVBC_ANNEX_A, false) || i->m_frontend->supportsDeliverySystem(SYS_DVBC_ANNEX_C, false);
 #else
 				return i->m_frontend->supportsDeliverySystem(SYS_DVBC_ANNEX_AC, false);
+#endif
 #endif
 			}
 			else if (!strcmp(type, "ATSC"))
@@ -882,11 +955,20 @@ void eDVBResourceManager::setFrontendType(int index, const char *types)
 			}
 			else if (type == "DVB-C")
 			{
+#ifdef HAVE_OLDE2_API
+#if DVB_API_VERSION > 5 || DVB_API_VERSION == 5 && DVB_API_VERSION_MINOR >= 6
+				whitelist.push_back(SYS_DVBC_ANNEX_A);
+				whitelist.push_back(SYS_DVBC_ANNEX_C);
+#else
+				whitelist.push_back(SYS_DVBC_ANNEX_AC);
+#endif
+#else
 #if defined SYS_DVBC_ANNEX_A
 				whitelist.push_back(SYS_DVBC_ANNEX_A);
 				whitelist.push_back(SYS_DVBC_ANNEX_C);
 #else
 				whitelist.push_back(SYS_DVBC_ANNEX_AC);
+#endif
 #endif
 			}
 			else if (type == "ATSC")
@@ -909,8 +991,9 @@ RESULT eDVBResourceManager::allocateFrontend(ePtr<eDVBAllocatedFrontend> &fe, eP
 	eSmartPtrList<eDVBRegisteredFrontend> &frontends = simulate ? m_simulate_frontend : m_frontend;
 	eDVBRegisteredFrontend *best, *fbc_fe, *best_fbc_fe;
 	int bestval, foundone, current_fbc_setid, c;
-	bool check_fbc_leaf_linkable, is_configured_sat;
-	long link;
+	bool check_fbc_leaf_linkable;
+	[[maybe_unused]] bool is_configured_sat;
+	[[maybe_unused]] long link;
 
 	fbc_fe  = NULL;
 	best_fbc_fe = NULL;
@@ -1150,6 +1233,13 @@ RESULT eDVBResourceManager::getChannelList(ePtr<iDVBChannelList> &list)
 	else
 		return -ENOENT;
 }
+
+RESULT eDVBResourceManager::getActiveChannels(std::list<active_channel> &list)
+{
+	list = m_active_channels;
+	return 0;
+}
+
 
 #define eDebugNoSimulate(x...) \
 	do { \
@@ -1422,8 +1512,10 @@ int tuner_type_channel_default(ePtr<iDVBChannelList> &channellist, const eDVBCha
 						return 40000;
 					case iDVBFrontend::feTerrestrial:
 						return 30000;
+#ifndef HAVE_OLDE2_API
 					case iDVBFrontend::feATSC:
 						return 20000;
+#endif
 					default:
 						break;
 				}
@@ -1433,7 +1525,7 @@ int tuner_type_channel_default(ePtr<iDVBChannelList> &channellist, const eDVBCha
 	return 0;
 }
 
-int eDVBResourceManager::canAllocateChannel(const eDVBChannelID &channelid, const eDVBChannelID& ignore, const eDVBChannelID& ignoresr, int &system, bool simulate)
+int eDVBResourceManager::canAllocateChannel(const eDVBChannelID &channelid, const eDVBChannelID& ignore, int &system, bool simulate)
 {
 	std::list<active_channel> &active_channels = simulate ? m_active_simulate_channels : m_active_channels;
 	int ret = 0;
@@ -1441,9 +1533,8 @@ int eDVBResourceManager::canAllocateChannel(const eDVBChannelID &channelid, cons
 	if (!simulate && m_cached_channel)
 	{
 		eDVBChannel *cache_chan = (eDVBChannel*)&(*m_cached_channel);
-		if(channelid==cache_chan->getChannelID()) {
+		if(channelid==cache_chan->getChannelID())
 			return tuner_type_channel_default(m_list, channelid, system);
-		}
 	}
 
 		/* first, check if a channel is already existing. */
@@ -1465,7 +1556,6 @@ int eDVBResourceManager::canAllocateChannel(const eDVBChannelID &channelid, cons
 	std::vector<int*> fcc_decremented_fe_usecounts;
 	std::map<eDVBChannelID, int> fcc_chids;
 	int apply_to_ignore = 0;
-	int apply_to_ignoresr = 0;
 	if (!eFCCServiceManager::getFCCChannelID(fcc_chids))
 	{
 		for (std::map<eDVBChannelID, int>::iterator i(fcc_chids.begin()); i != fcc_chids.end(); ++i)
@@ -1512,18 +1602,6 @@ int eDVBResourceManager::canAllocateChannel(const eDVBChannelID &channelid, cons
 		}
 	}
 
-	// For stream relayed channel make a check is it in the available channels and if it is ignore it
-	if (ignoresr) {
-		for (std::list<active_channel>::iterator i(active_channels.begin()); i != active_channels.end(); ++i)
-		{
-			if (i->m_channel_id == ignoresr)
-			{
-				apply_to_ignoresr = 1;
-				break;
-			}
-		}
-	}
-
 	for (std::list<active_channel>::iterator i(active_channels.begin()); i != active_channels.end(); ++i)
 	{
 		eSmartPtrList<eDVBRegisteredFrontend> &frontends = simulate ? m_simulate_frontend : m_frontend;
@@ -1537,7 +1615,6 @@ int eDVBResourceManager::canAllocateChannel(const eDVBChannelID &channelid, cons
 			// or 2 when the cached channel is not equal to the compared channel
 			int check_usecount = channel == &(*m_cached_channel) ? 1 : 0;
 			check_usecount += (apply_to_ignore+1) * 2; // one is used in eDVBServicePMTHandler and another is used in eDVBScan.
-			check_usecount += apply_to_ignoresr;
 			//eDebug("[eDVBResourceManager] canAllocateChannel channel->getUseCount() : %d , check_usecount : %d (cached : %d)", channel->getUseCount(), check_usecount, channel == &(*m_cached_channel));
 			if (channel->getUseCount() == check_usecount)  // channel only used once..(except fcc)
 			{
@@ -1687,8 +1764,13 @@ void eDVBChannelFilePush::filterRecordData(const unsigned char *_data, int len)
 
 DEFINE_REF(eDVBChannel);
 
+int eDVBChannel::m_debug = -1;
+
 eDVBChannel::eDVBChannel(eDVBResourceManager *mgr, eDVBAllocatedFrontend *frontend): m_state(state_idle), m_mgr(mgr)
 {
+	if(eDVBChannel::m_debug < 0)
+		eDVBChannel::m_debug = eSimpleConfig::getBool("config.crash.debugDVB", false) ? 1 : 0;
+
 	m_frontend = frontend;
 
 	m_pvr_thread = 0;
@@ -1721,11 +1803,13 @@ void eDVBChannel::frontendStateChanged(iDVBFrontend*fe)
 
 	if (state == iDVBFrontend::stateLock)
 	{
-		eDebug("[eDVBChannel] OURSTATE: ok");
+		if(eDVBChannel::m_debug)
+			eDebug("[eDVBChannel] OURSTATE: ok");
 		ourstate = state_ok;
 	} else if (state == iDVBFrontend::stateTuning)
 	{
-		eDebug("[eDVBChannel] OURSTATE: tuning");
+		if(eDVBChannel::m_debug)
+			eDebug("[eDVBChannel] OURSTATE: tuning");
 		ourstate = state_tuning;
 	} else if (state == iDVBFrontend::stateLostLock)
 	{
@@ -2255,7 +2339,8 @@ RESULT eDVBChannel::getDemux(ePtr<iDVBDemux> &demux, int cap)
 {
 	ePtr<eDVBAllocatedDemux> &our_demux = (cap & capDecode) ? m_decoder_demux : m_demux;
 
-	eDebug("[eDVBChannel] getDemux cap=%02X", cap);
+	if(eDVBChannel::m_debug)
+		eDebug("[eDVBChannel] getDemux cap=%02X", cap);
 
 	if (!m_frontend)
 	{

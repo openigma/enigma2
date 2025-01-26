@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #
 # Generic Screen to select a path/filename combination
 #
@@ -6,13 +7,14 @@
 from Screens.Screen import Screen
 from Screens.MessageBox import MessageBox
 from Screens.InputBox import InputBox
-from Screens.HelpMenu import HelpableScreen
 from Screens.ChoiceBox import ChoiceBox
 
 # Generic
 from Tools.BoundFunction import boundFunction
 from Tools.Directories import createDir as directories_createDir, removeDir as directories_removeDir
 from Components.config import config
+from os import sep, stat, statvfs
+from os.path import isdir
 import os
 
 # Quickselect
@@ -30,33 +32,41 @@ from Components.MenuList import MenuList
 # Timer
 from enigma import eTimer
 
-defaultInhibitDirs = ["/bin", "/boot", "/dev", "/etc", "/lib", "/proc", "/sbin", "/sys", "/var"]
+
+DEFAULT_INHIBIT_DIRECTORIES = ("/bin", "/boot", "/dev", "/etc", "/home", "/lib", "/picon", "/piconlcd", "/proc", "/run", "/sbin", "/share", "/sys", "/tmp", "/usr", "/var")
+defaultInhibitDirs = list(DEFAULT_INHIBIT_DIRECTORIES)
+DEFAULT_INHIBIT_DEVICES = []
+for dir in DEFAULT_INHIBIT_DIRECTORIES + ("/", "/media"):
+	if isdir(dir):
+		device = stat(dir).st_dev
+		if device not in DEFAULT_INHIBIT_DEVICES:
+			DEFAULT_INHIBIT_DEVICES.append(device)
+DEFAULT_INHIBIT_DEVICES = tuple(DEFAULT_INHIBIT_DEVICES)
 
 
-class LocationBox(Screen, NumericalTextInput, HelpableScreen):
+class LocationBox(Screen, NumericalTextInput):
 	"""Simple Class similar to MessageBox / ChoiceBox but used to choose a folder/pathname combination"""
 
 	skin = """<screen name="LocationBox" position="100,75" size="540,460" >
 			<widget name="text" position="0,2" size="540,22" font="Regular;22" />
-			<widget name="target" position="0,23" size="540,22" valign="center" font="Regular;22" />
-			<widget name="filelist" position="0,55" zPosition="1" size="540,210" scrollbarMode="showOnDemand" selectionDisabled="1" />
+			<widget name="target" position="0,23" size="540,22" verticalAlignment="center" font="Regular;22" />
+			<widget name="filelist" position="0,55" zPosition="1" size="540,210" scrollbarMode="showOnDemand" selection="1" />
 			<widget name="textbook" position="0,272" size="540,22" font="Regular;22" />
 			<widget name="booklist" position="5,302" zPosition="2" size="535,100" scrollbarMode="showOnDemand" />
-			<widget name="red" position="0,415" zPosition="1" size="135,40" pixmap="buttons/red.png" transparent="1" alphatest="on" />
-			<widget name="key_red" position="0,415" zPosition="2" size="135,40" halign="center" valign="center" font="Regular;22" transparent="1" shadowColor="black" shadowOffset="-1,-1" />
-			<widget name="green" position="135,415" zPosition="1" size="135,40" pixmap="buttons/green.png" transparent="1" alphatest="on" />
-			<widget name="key_green" position="135,415" zPosition="2" size="135,40" halign="center" valign="center" font="Regular;22" transparent="1" shadowColor="black" shadowOffset="-1,-1" />
-			<widget name="yellow" position="270,415" zPosition="1" size="135,40" pixmap="buttons/yellow.png" transparent="1" alphatest="on" />
-			<widget name="key_yellow" position="270,415" zPosition="2" size="135,40" halign="center" valign="center" font="Regular;22" transparent="1" shadowColor="black" shadowOffset="-1,-1" />
-			<widget name="blue" position="405,415" zPosition="1" size="135,40" pixmap="buttons/blue.png" transparent="1" alphatest="on" />
-			<widget name="key_blue" position="405,415" zPosition="2" size="135,40" halign="center" valign="center" font="Regular;22" transparent="1" shadowColor="black" shadowOffset="-1,-1" />
+			<widget name="red" position="0,415" zPosition="1" size="135,40" pixmap="buttons/red.png" transparent="1" alphaTest="on" />
+			<widget name="key_red" position="0,415" zPosition="2" size="135,40" horizontalAlignment="center" verticalAlignment="center" font="Regular;22" transparent="1" shadowColor="black" shadowOffset="-1,-1" />
+			<widget name="green" position="135,415" zPosition="1" size="135,40" pixmap="buttons/green.png" transparent="1" alphaTest="on" />
+			<widget name="key_green" position="135,415" zPosition="2" size="135,40" horizontalAlignment="center" verticalAlignment="center" font="Regular;22" transparent="1" shadowColor="black" shadowOffset="-1,-1" />
+			<widget name="yellow" position="270,415" zPosition="1" size="135,40" pixmap="buttons/yellow.png" transparent="1" alphaTest="on" />
+			<widget name="key_yellow" position="270,415" zPosition="2" size="135,40" horizontalAlignment="center" verticalAlignment="center" font="Regular;22" transparent="1" shadowColor="black" shadowOffset="-1,-1" />
+			<widget name="blue" position="405,415" zPosition="1" size="135,40" pixmap="buttons/blue.png" transparent="1" alphaTest="on" />
+			<widget name="key_blue" position="405,415" zPosition="2" size="135,40" horizontalAlignment="center" verticalAlignment="center" font="Regular;22" transparent="1" shadowColor="black" shadowOffset="-1,-1" />
 		</screen>"""
 
 	def __init__(self, session, text="", filename="", currDir=None, bookmarks=None, userMode=False, windowTitle=None, minFree=None, autoAdd=False, editDir=False, inhibitDirs=[], inhibitMounts=[]):
 		# Init parents
-		Screen.__init__(self, session)
+		Screen.__init__(self, session, enableHelp=True)
 		NumericalTextInput.__init__(self, handleTimeout=False)
-		HelpableScreen.__init__(self)
 
 		# Set useable chars
 		self.setUseableChars('1234567890abcdefghijklmnopqrstuvwxyz')
@@ -562,7 +572,7 @@ class TimeshiftLocationBox(LocationBox):
 				session,
 				text=_("Where to save temporary timeshift recordings?"),
 				currDir=config.usage.timeshift_path.value,
-				bookmarks=config.usage.allowed_timeshift_paths,
+				bookmarks=config.timeshift.allowedPaths,
 				autoAdd=True,
 				editDir=True,
 				inhibitDirs=defaultInhibitDirs,

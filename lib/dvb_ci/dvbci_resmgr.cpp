@@ -135,7 +135,7 @@ int eDVBCIResourceManagerSession::doAction()
 //				{0x00, 0x60, 0x60, 0x03},
 //				{0x00, 0x04, 0x10, 0x01},
 			};
-		
+
 		bool operator_profile_disabled = slot->getIsOperatorProfileDisabled();
 
 		bool ciplus = ciplus_cert_param_files_exists();

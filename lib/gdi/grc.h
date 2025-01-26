@@ -109,6 +109,7 @@ struct gOpcode
 			int markedpos;
 			int scrollpos;
 			int *offset;
+			int tabwidth;
 		} *renderText;
 
 		struct prenderPara
@@ -205,12 +206,12 @@ struct gOpcode
 			ePoint point;
 			eSize size;
 		} *setShowItemInfo;
-
+		
 		struct psetFlush
 		{
 			bool enable;
 		} *setFlush;
-
+		
 		struct psetViewInfo
 		{
 			eSize size;
@@ -222,7 +223,7 @@ struct gOpcode
 #define MAXSIZE 2048
 
 /* gRC is the singleton which controls the fifo and dispatches commands */
-class gRC : public iObject, public sigc::trackable
+class gRC: public iObject, public sigc::trackable
 {
 	DECLARE_REF(gRC);
 	friend class gPainter;
@@ -259,6 +260,11 @@ public:
 	virtual ~gRC();
 
 	void submit(const gOpcode &o);
+
+#ifdef CONFIG_ION
+	void lock();
+	void unlock();
+#endif
 
 	sigc::signal<void()> notify;
 
@@ -310,9 +316,10 @@ public:
 
 		RT_WRAP = 64,
 		RT_ELLIPSIS = 128,
-		RT_BLEND = 256
+		RT_BLEND = 256,
+		RT_UNDERLINE = 512
 	};
-	void renderText(const eRect &position, const std::string &string, int flags = 0, gRGB bordercolor = gRGB(), int border = 0, int markedpos = -1, int *offset = 0);
+	void renderText(const eRect &position, const std::string &string, int flags = 0, gRGB bordercolor = gRGB(), int border = 0, int markedpos = -1, int *offset = 0, int tabwidth = -1);
 
 	void renderPara(eTextPara *para, ePoint offset = ePoint(0, 0));
 
@@ -376,7 +383,7 @@ public:
 #endif
 };
 
-class gDC : public iObject
+class gDC: public iObject
 {
 	DECLARE_REF(gDC);
 
@@ -402,9 +409,10 @@ protected:
 	std::stack<gRegion> m_clip_stack;
 	gRegion m_current_clip;
 
-	ePtr<gPixmap> m_spinner_saved, m_spinner_temp;
+	ePtr<gPixmap> m_spinner_saved_HD, m_spinner_temp_HD, m_spinner_saved_FHD, m_spinner_temp_FHD;
 	ePtr<gPixmap> *m_spinner_pic;
-	eRect m_spinner_pos;
+	eRect m_spinner_pos_HD;
+	eRect m_spinner_pos_FHD;
 	int m_spinner_num, m_spinner_i;
 
 public:

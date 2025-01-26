@@ -1,5 +1,7 @@
+# -*- coding: utf-8 -*-
 import os
 import time
+from Components.config import config
 
 ECM_INFO = '/tmp/ecm.info'
 EMPTY_ECM_INFO = '', '0', '0', '0'
@@ -38,6 +40,8 @@ class GetEcmInfo:
 				d = line.split(':', 1)
 				if len(d) > 1:
 					info[d[0].strip()] = d[1].strip()
+			if info and info.get("from") and config.softcam.hideServerName.value:
+				info["from"] = "".join(["\u2022"] * len(info.get("from")))
 			data = self.getText()
 			return True
 		else:

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from enigma import eDVBResourceManager, eDVBFrontendParametersSatellite, eDVBFrontendParametersTerrestrial, eTimer
 
 from Screens.ScanSetup import ScanSetup, buildTerTransponder
@@ -9,6 +10,7 @@ from Components.Sources.FrontendStatus import FrontendStatus
 from Components.ActionMap import ActionMap
 from Components.NimManager import nimmanager, getConfigSatlist
 from Components.config import config, ConfigSelection
+from Components.SystemInfo import SystemInfo
 from Components.TuneTest import Tuner
 from Tools.Transponder import getChannelNumber, channel2frequency
 from Tools.BoundFunction import boundFunction

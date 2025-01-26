@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 from Components.config import ConfigSubsection, config
-import os
+from os.path import basename, isdir, join, normpath
 
 config.plugins = ConfigSubsection()
 
@@ -68,11 +69,21 @@ class PluginDescriptor:
 	WHERE_INFOBAR_SCREEN = 16
 	WHERE_SECONDINFOBAR_SCREEN = 17
 
+	# Support playservice hook to modify the service ref.
+	WHERE_PLAYSERVICE = 18
+
+	# Arguments: reason, session, instance, type.
+	WHERE_INFOBARLOADED = 19
+
+	# Argument: session
+	WHERE_BUTTONSETUP = 20
+
 	def __init__(self, name="Plugin", where=[], description="", icon=None, fnc=None, wakeupfnc=None, needsRestart=None, internal=False, weight=0):
 		self.name = name
 		self.internal = internal
 		self.needsRestart = needsRestart
 		self.path = None
+		self.key = name
 		if isinstance(where, list):
 			self.where = where
 		else:
@@ -98,6 +109,8 @@ class PluginDescriptor:
 
 	def updateIcon(self, path):
 		self.path = path
+		if isdir(path):
+			self.key = basename(normpath(path))
 
 	def getWakeupTime(self):
 		return self.wakeupfnc and self.wakeupfnc() or -1
@@ -106,7 +119,7 @@ class PluginDescriptor:
 	def icon(self):
 		if self.iconstr and self.path:
 			from Tools.LoadPixmap import LoadPixmap
-			return LoadPixmap(os.path.join(self.path, self.iconstr))
+			return LoadPixmap(join(self.path, self.iconstr))
 		else:
 			return self._icon
 

@@ -12,12 +12,15 @@ type_huffman_node huffman_root;
 bool huffman_read_dictionary (char *file)
 {
 	FILE *fd;
-	fd = fopen (file, "r");
 
+	fd = fopen (file, "r");
 	if (!fd)
+	{
+		eTrace("[huffman] Cannot open dictionary file");
 		return false;
-	else
-		eDebug("[huffman] read.. '%s'", file);
+	}
+
+	eDebug("[huffman] read.. '%s'", file);
 
 	char line[512];
 	char value[256];

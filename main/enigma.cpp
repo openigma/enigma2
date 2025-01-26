@@ -3,6 +3,9 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
+#include <shadow.h>
+#include <crypt.h>
+#include <pwd.h>
 #include <libsig_comp.h>
 #include <linux/dvb/version.h>
 
@@ -13,8 +16,10 @@
 #include <lib/base/ebase.h>
 #include <lib/base/eenv.h>
 #include <lib/base/eerror.h>
+#include <lib/base/esimpleconfig.h>
 #include <lib/base/init.h>
 #include <lib/base/init_num.h>
+#include <lib/base/nconfig.h>
 #include <lib/gdi/gmaindc.h>
 #include <lib/gdi/glcddc.h>
 #include <lib/gdi/grc.h>
@@ -31,9 +36,12 @@
 #include <lib/python/python.h>
 #include <lib/python/pythonconfig.h>
 #include <lib/service/servicepeer.h>
+#include <lib/base/profile.h>
 
 #include "bsod.h"
 #include "version_info.h"
+
+#include <gst/gst.h>
 
 #ifdef OBJECT_DEBUG
 int object_total_remaining;
@@ -87,7 +95,6 @@ void keyEvent(const eRCKey &key)
 }
 
 /************************************************/
-#include <unistd.h>
 #include <lib/components/scan.h>
 #include <lib/dvb/idvb.h>
 #include <lib/dvb/dvb.h>
@@ -99,7 +106,7 @@ void keyEvent(const eRCKey &key)
 /* Defined in eerror.cpp */
 void setDebugTime(bool enable);
 
-class eMain: public eApplication, public sigc::trackable
+class eMain : public eApplication, public sigc::trackable
 {
 	eInit init;
 	ePythonConfigQuery config;
@@ -133,6 +140,48 @@ public:
 		e2avahi_close();
 	}
 };
+
+bool replace(std::string &str, const std::string &from, const std::string &to)
+{
+	size_t start_pos = str.find(from);
+	if (start_pos == std::string::npos)
+		return false;
+	str.replace(start_pos, from.length(), to);
+	return true;
+}
+
+static const std::string getConfigCurrentSpinner(const char *key)
+{
+	auto value = eSimpleConfig::getString(key);
+
+	// if value is not empty, means config.skin.primary_skin exist in settings file
+
+	if (!value.empty())
+	{
+		replace(value, "skin.xml", "spinner");
+		std::string png_location = eEnv::resolve("${datadir}/enigma2/" + value + "/wait1.png");
+		std::ifstream png(png_location.c_str());
+		if (png.good())
+		{
+			png.close();
+			return value; // if value is NOT empty, means config.skin.primary_skin exist in settings file, so return SCOPE_GUISKIN + "/spinner" ( /usr/share/enigma2/MYSKIN/spinner/wait1.png exist )
+		}
+	}
+
+	// try to find spinner in skin_default/spinner subfolder
+	value = "skin_default/spinner";
+
+	// check /usr/share/enigma2/skin_default/spinner/wait1.png
+	std::string png_location = eEnv::resolve("${datadir}/enigma2/" + value + "/wait1.png");
+	std::ifstream png(png_location.c_str());
+	if (png.good())
+	{
+		png.close();
+		return value; // ( /usr/share/enigma2/skin_default/spinner/wait1.png exist )
+	}
+	else
+		return "spinner"; // ( /usr/share/enigma2/skin_default/spinner/wait1.png DOES NOT exist )
+}
 
 int exit_code;
 
@@ -198,18 +247,21 @@ int main(int argc, char **argv)
 	atexit(object_dump);
 #endif
 
+	gst_init(&argc, &argv);
+
 	// set pythonpath if unset
 	setenv("PYTHONPATH", eEnv::resolve("${libdir}/enigma2/python").c_str(), 0);
-	printf("PYTHONPATH: %s\n", getenv("PYTHONPATH"));
-	printf("DVB_API_VERSION %d DVB_API_VERSION_MINOR %d\n", DVB_API_VERSION, DVB_API_VERSION_MINOR);
 
 	// get enigma2 debug level settings
 	debugLvl = getenv("ENIGMA_DEBUG_LVL") ? atoi(getenv("ENIGMA_DEBUG_LVL")) : 4;
 	if (debugLvl < 0)
 		debugLvl = 0;
-	printf("ENIGMA_DEBUG_LVL=%d\n", debugLvl);
 	if (getenv("ENIGMA_DEBUG_TIME"))
 		setDebugTime(atoi(getenv("ENIGMA_DEBUG_TIME")) != 0);
+
+	eLog(0, "[Enigma] Python path is '%s'.", getenv("PYTHONPATH"));
+	eLog(0, "[Enigma] DVB API version %d, DVB API version minor %d.", DVB_API_VERSION, DVB_API_VERSION_MINOR);
+	eLog(0, "[Enigma] Enigma debug level %d.", debugLvl);
 
 	ePython python;
 	eMain main;
@@ -217,11 +269,10 @@ int main(int argc, char **argv)
 	ePtr<gMainDC> my_dc;
 	gMainDC::getInstance(my_dc);
 
-	//int double_buffer = my_dc->haveDoubleBuffering();
+	// int double_buffer = my_dc->haveDoubleBuffering();
 
 	ePtr<gLCDDC> my_lcd_dc;
 	gLCDDC::getInstance(my_lcd_dc);
-
 
 		/* ok, this is currently hardcoded for arabic. */
 			/* some characters are wrong in the regular font, force them to use the replacement font */
@@ -237,11 +288,13 @@ int main(int argc, char **argv)
 	dsk.setStyleID(0);
 	dsk_lcd.setStyleID(1);
 
-/*	if (double_buffer)
+	/*
+	if (double_buffer)
 	{
 		eDebug("[MAIN] - double buffering found, enable buffered graphics mode.");
 		dsk.setCompositionMode(eWidgetDesktop::cmBuffered);
-	} */
+	}
+	*/
 
 	wdsk = &dsk;
 	lcddsk = &dsk_lcd;
@@ -249,48 +302,85 @@ int main(int argc, char **argv)
 	dsk.setDC(my_dc);
 	dsk_lcd.setDC(my_lcd_dc);
 
-	dsk.setBackgroundColor(gRGB(0,0,0,0xFF));
+	dsk.setBackgroundColor(gRGB(0, 0, 0, 0xFF));
 
-		/* redrawing is done in an idle-timer, so we have to set the context */
+	/* redrawing is done in an idle-timer, so we have to set the context */
 	dsk.setRedrawTask(main);
 	dsk_lcd.setRedrawTask(main);
 
+	std::string active_skin = getConfigCurrentSpinner("config.skin.primary_skin");
+	std::string spinnerPostion = eSimpleConfig::getString("config.misc.spinnerPosition", "50,50");
+	int spinnerPostionX, spinnerPostionY;
+	if (sscanf(spinnerPostion.c_str(), "%d,%d", &spinnerPostionX, &spinnerPostionY) != 2)
+	{
+		spinnerPostionX = spinnerPostionY = 50;
+	}
 
 	eDebug("[MAIN] Loading spinners...");
-
 	{
-		int i;
 #define MAX_SPINNER 64
-		ePtr<gPixmap> wait[MAX_SPINNER];
-		for (i=0; i<MAX_SPINNER; ++i)
+		int i = 0;
+		char filename[64];
+		std::string rfilename;
+		std::string skinpath = "${datadir}/enigma2/" + active_skin;
+		std::string defpath = "${datadir}/enigma2/spinner";
+		std::string userpath = "${sysconfdir}/enigma2/spinner";
+		bool def = (skinpath.compare(defpath) == 0);
+
+		snprintf(filename, sizeof(filename), "%s/wait%d.png", userpath.c_str(), i + 1);
+		rfilename = eEnv::resolve(filename);
+
+		struct stat st;
+		if (::stat(rfilename.c_str(), &st) == 0)
 		{
-			char filename[64] = {};
-			std::string rfilename;
-			snprintf(filename, sizeof(filename), "${datadir}/enigma2/skin_default/spinner/wait%d.png", i + 1);
+			def = true;
+			skinpath = userpath;
+		}
+
+		ePtr<gPixmap> wait[MAX_SPINNER];
+		while (i < MAX_SPINNER)
+		{
+			snprintf(filename, sizeof(filename), "%s/wait%d.png", skinpath.c_str(), i + 1);
 			rfilename = eEnv::resolve(filename);
 
-			if (::access(rfilename.c_str(), R_OK) < 0)
-				break;
+			wait[i] = 0;
+			if (::stat(rfilename.c_str(), &st) == 0)
+				loadPNG(wait[i], rfilename.c_str());
 
-			loadImage(wait[i], rfilename.c_str());
 			if (!wait[i])
 			{
-				eDebug("[MAIN] failed to load %s: %m", rfilename.c_str());
+				// spinner failed
+				if (i == 0)
+				{
+					// retry default spinner only once
+					if (!def)
+					{
+						def = true;
+						skinpath = defpath;
+						continue;
+					}
+				}
+				// exit loop because of no more spinners
 				break;
 			}
+			i++;
 		}
-		eDebug("[MAIN] found %d spinner!", i);
-		if (i)
-			my_dc->setSpinner(eRect(ePoint(100, 100), wait[0]->size()), wait, i);
+		eDebug("[Enigma] Found %d spinners. Position x=%d y=%d", i, spinnerPostionX, spinnerPostionY);
+		if (i == 0)
+			my_dc->setSpinner(eRect(spinnerPostionX, spinnerPostionY, 0, 0), wait, 1);
 		else
-			my_dc->setSpinner(eRect(100, 100, 0, 0), wait, 1);
+		{
+			my_dc->setSpinner(eRect(ePoint(spinnerPostionX, spinnerPostionY), wait[0]->size()), wait, i);
+		}
 	}
 
 	gRC::getInstance()->setSpinnerDC(my_dc);
 
 	eRCInput::getInstance()->keyEvent.connect(sigc::ptr_fun(&keyEvent));
 
-	printf("[MAIN] executing main\n");
+	eDebug("[Enigma] Executing StartEnigma.py");
+
+	eProfile::getInstance().write("StartPython");
 
 	bsodCatchSignals();
 	catchTermSignal();
@@ -350,6 +440,54 @@ const char *getBoxType()
 	return BOXTYPE;
 }
 
+const char *getGStreamerVersionString()
+{
+	return gst_version_string();
+}
+
+int getE2Flags()
+{
+	return 1;
+}
+
+bool checkLogin(const char *user, const char *password)
+{
+	bool authenticated = false;
+
+	if (user && password)
+	{
+		char *buffer = (char *)malloc(4096);
+		if (buffer)
+		{
+			struct passwd pwd = {};
+			struct passwd *pwdresult = NULL;
+			std::string crypt;
+			getpwnam_r(user, &pwd, buffer, 4096, &pwdresult);
+			if (pwdresult)
+			{
+				struct crypt_data cryptdata = {};
+				char *cryptresult = NULL;
+				cryptdata.initialized = 0;
+				crypt = pwd.pw_passwd;
+				if (crypt == "*" || crypt == "x")
+				{
+					struct spwd spwd = {};
+					struct spwd *spwdresult = NULL;
+					getspnam_r(user, &spwd, buffer, 4096, &spwdresult);
+					if (spwdresult)
+					{
+						crypt = spwd.sp_pwdp;
+					}
+				}
+				cryptresult = crypt_r(password, crypt.c_str(), &cryptdata);
+				authenticated = cryptresult && cryptresult == crypt;
+			}
+			free(buffer);
+		}
+	}
+	return authenticated;
+}
+
 #include <malloc.h>
 
 void dump_malloc_stats(void)
@@ -357,7 +495,12 @@ void dump_malloc_stats(void)
 #ifdef __GLIBC__
 #if __GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 33)
 	struct mallinfo2 mi = mallinfo2();
-	eDebug("MALLOC: %zu total", mi.uordblks);
+#if HAVE_AMLOGIC
+	eDebug("MALLOC: %ld total", mi.uordblks);
+
+#else
+	eDebug("MALLOC: %u total", mi.uordblks);
+#endif
 #else
 	struct mallinfo mi = mallinfo();
 	eDebug("MALLOC: %d total", mi.uordblks);

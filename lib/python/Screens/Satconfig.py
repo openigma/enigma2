@@ -1,4 +1,5 @@
-from enigma import eDVBDB, getLinkedSlotID, eDVBResourceManager
+# -*- coding: utf-8 -*-
+from enigma import eDVBDB, getLinkedSlotID, eDVBResourceManager, isFBCLink
 from Screens.Screen import Screen
 from Screens.Setup import Setup
 from Components.SystemInfo import BoxInfo
@@ -17,6 +18,7 @@ from Screens.ServiceStopScreen import ServiceStopScreen
 from Screens.AutoDiseqc import AutoDiseqc
 from Tools.BoundFunction import boundFunction
 from Tools.Directories import fileExists
+
 from skin import parameters
 from time import mktime, localtime, time
 from datetime import datetime
@@ -375,7 +377,7 @@ class NimSetup(Setup, ServiceStopScreen):
 	def autoDiseqcRun(self):
 		self.stopService()
 		order = self.nimConfig.autoDiSEqC_order_single.value if self.nimConfig.diseqcMode.value == "single" else self.nimConfig.autoDiSEqC_order.value
-		self.session.openWithCallback(self.autoDiseqcCallback, AutoDiseqc, self.slotid, self.autodiseqc_ports, order)
+		self.session.openWithCallback(self.autoDiseqcCallback, AutoDiseqc, self.slotid, self.autodiseqc_ports, self.nimConfig.simpleDiSEqCSetVoltageTone, self.nimConfig.simpleDiSEqCOnlyOnSatChange, order)
 
 	def autoDiseqcCallback(self, result):
 		from Screens.Wizard import Wizard
@@ -752,6 +754,20 @@ class NimSelection(Screen):
 		}, -2)
 		self.setTitle(_("Choose Tuner"))
 
+	def checkFBCLinks(self):
+		for x in nimmanager.nim_slots:
+			if self.showNim(x):
+				if x.isCompatible("DVB-S"):
+					slotid = x.slot
+					if isFBCLink(slotid):
+						link = getLinkedSlotID(slotid)
+						if link != -1:
+							linkNimConfig = nimmanager.getNimConfig(link).dvbs
+							if linkNimConfig.configMode.value == "nothing":
+								nimConfig = nimmanager.getNimConfig(slotid).dvbs
+								nimConfig.configMode.value = "nothing"  # Reset child if parent is "nothing"
+								nimConfig.configMode.save()
+
 	def exit(self):
 		self.close(True)
 
@@ -789,6 +805,7 @@ class NimSelection(Screen):
 					self.session.openWithCallback(boundFunction(self.NimSetupCB, self["nimlist"].getIndex()), self.resultclass, nim.slot)
 
 	def NimSetupCB(self, index=None):
+		self.checkFBCLinks()
 		self.updateList(index)
 
 	def showNim(self, nim):
@@ -809,7 +826,7 @@ class NimSelection(Screen):
 				if x.isCompatible("DVB-S"):
 					if nimConfig.configMode.value in ("loopthrough", "equal", "satposdepends"):
 						if x.isFBCLink():
-							text = _("FBC automatic\nconnected to")
+							text = "%s %s" % (_("FBC automatic\nconnected to"), nimmanager.getNim(int(nimConfig.connectedTo.value)).slot_name)
 						else:
 							text = "%s %s" % ({"loopthrough": _("Loop through from"), "equal": _("Equal to"), "satposdepends": _("Second cable of motorized LNB")}[nimConfig.configMode.value],
 								nimmanager.getNim(int(nimConfig.connectedTo.value)).slot_name)
@@ -908,17 +925,17 @@ class NimSelection(Screen):
 class SelectSatsEntryScreen(Screen):
 	skin = """
 		<screen name="SelectSatsEntryScreen" position="center,center" size="560,410" title="Select Sats Entry" >
-			<ePixmap name="red" position="0,0"   zPosition="2" size="140,40" pixmap="buttons/red.png" transparent="1" alphatest="on" />
-			<ePixmap name="green" position="140,0" zPosition="2" size="140,40" pixmap="buttons/green.png" transparent="1" alphatest="on" />
-			<ePixmap name="yellow" position="280,0" zPosition="2" size="140,40" pixmap="buttons/yellow.png" transparent="1" alphatest="on" />
-			<ePixmap name="blue" position="420,0" zPosition="2" size="140,40" pixmap="buttons/blue.png" transparent="1" alphatest="on" />
-			<widget name="key_red" position="0,0" size="140,40" valign="center" halign="center" zPosition="4"  foregroundColor="white" font="Regular;17" transparent="1" shadowColor="background" shadowOffset="-2,-2" />
-			<widget name="key_green" position="140,0" size="140,40" valign="center" halign="center" zPosition="4" foregroundColor="white" font="Regular;17" transparent="1" shadowColor="background" shadowOffset="-2,-2" />
-			<widget name="key_yellow" position="280,0" size="140,40" valign="center" halign="center" zPosition="4" foregroundColor="white" font="Regular;17" transparent="1" shadowColor="background" shadowOffset="-2,-2" />
-			<widget name="key_blue" position="420,0" size="140,40" valign="center" halign="center" zPosition="4" foregroundColor="white" font="Regular;17" transparent="1" shadowColor="background" shadowOffset="-2,-2" />
+			<ePixmap name="red" position="0,0"   zPosition="2" size="140,40" pixmap="buttons/red.png" transparent="1" alphaTest="on" />
+			<ePixmap name="green" position="140,0" zPosition="2" size="140,40" pixmap="buttons/green.png" transparent="1" alphaTest="on" />
+			<ePixmap name="yellow" position="280,0" zPosition="2" size="140,40" pixmap="buttons/yellow.png" transparent="1" alphaTest="on" />
+			<ePixmap name="blue" position="420,0" zPosition="2" size="140,40" pixmap="buttons/blue.png" transparent="1" alphaTest="on" />
+			<widget name="key_red" position="0,0" size="140,40" verticalAlignment="center" horizontalAlignment="center" zPosition="4"  foregroundColor="white" font="Regular;17" transparent="1" shadowColor="background" shadowOffset="-2,-2" />
+			<widget name="key_green" position="140,0" size="140,40" verticalAlignment="center" horizontalAlignment="center" zPosition="4" foregroundColor="white" font="Regular;17" transparent="1" shadowColor="background" shadowOffset="-2,-2" />
+			<widget name="key_yellow" position="280,0" size="140,40" verticalAlignment="center" horizontalAlignment="center" zPosition="4" foregroundColor="white" font="Regular;17" transparent="1" shadowColor="background" shadowOffset="-2,-2" />
+			<widget name="key_blue" position="420,0" size="140,40" verticalAlignment="center" horizontalAlignment="center" zPosition="4" foregroundColor="white" font="Regular;17" transparent="1" shadowColor="background" shadowOffset="-2,-2" />
 			<widget name="list" position="10,40" size="540,330" scrollbarMode="showNever" />
-			<ePixmap pixmap="div-h.png" position="0,375" zPosition="1" size="540,2" transparent="1" alphatest="on" />
-			<widget name="hint" position="10,380" size="540,25" font="Regular;19" halign="center" transparent="1" />
+			<ePixmap pixmap="div-h.png" position="0,375" zPosition="1" size="540,2" transparent="1" alphaTest="on" />
+			<widget name="hint" position="10,380" size="540,25" font="Regular;19" horizontalAlignment="center" transparent="1" />
 		</screen>"""
 
 	def __init__(self, session, userSatlist=""):

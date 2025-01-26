@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from enigma import ePicLoad, eTimer, getDesktop, gMainDC, eSize
 
 from Screens.Screen import Screen
@@ -7,16 +8,11 @@ from Components.Pixmap import Pixmap, MovingPixmap
 from Components.ActionMap import ActionMap
 from Components.Sources.StaticText import StaticText
 from Components.FileList import FileList
-from Components.AVSwitch import AVSwitch
 from Components.Sources.List import List
 from Components.ConfigList import ConfigList, ConfigListScreen
 
 from Components.config import config, ConfigSubsection, ConfigInteger, ConfigSelection, ConfigText, ConfigYesNo, KEY_LEFT, KEY_RIGHT
-from skin import applySkinFactor, parameters
-
-
-def getScale():
-	return AVSwitch().getFramebufferScale()
+from skin import parameters
 
 
 config.pic = ConfigSubsection()
@@ -36,14 +32,14 @@ config.pic.textcolor = ConfigSelection(default="#0038FF48", choices=[("#00000000
 class picshow(Screen):
 	skin = """
 		<screen name="picshow" position="center,center" size="560,440" title="Picture player" >
-			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphatest="on" />
-			<ePixmap pixmap="buttons/green.png" position="140,0" size="140,40" alphatest="on" />
-			<ePixmap pixmap="buttons/yellow.png" position="280,0" size="140,40" alphatest="on" />
-			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#9f1313" transparent="1" />
-			<widget source="key_green" render="Label" position="140,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#1f771f" transparent="1" />
-			<widget source="key_yellow" render="Label" position="280,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#a08500" transparent="1" />
+			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphaTest="on" />
+			<ePixmap pixmap="buttons/green.png" position="140,0" size="140,40" alphaTest="on" />
+			<ePixmap pixmap="buttons/yellow.png" position="280,0" size="140,40" alphaTest="on" />
+			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#9f1313" transparent="1" />
+			<widget source="key_green" render="Label" position="140,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#1f771f" transparent="1" />
+			<widget source="key_yellow" render="Label" position="280,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#a08500" transparent="1" />
 			<widget source="label" render="Label" position="5,55" size="350,140" font="Regular;19" backgroundColor="#25062748" transparent="1"  />
-			<widget name="thn" position="360,40" size="180,160" alphatest="on" />
+			<widget name="thn" position="360,40" size="180,160" alphaTest="on" />
 			<widget name="filelist" position="5,205" zPosition="2" size="550,230" scrollbarMode="showOnDemand" />
 		</screen>"""
 
@@ -125,9 +121,8 @@ class picshow(Screen):
 			self.session.openWithCallback(self.callbackView, Pic_Full_View, self.filelist.getFileList(), self.filelist.getSelectionIndex(), self.filelist.getCurrentDirectory())
 
 	def setConf(self, retval=None):
-		sc = getScale()
 		#0=Width 1=Height 2=Aspect 3=use_cache 4=resize_type 5=Background(#AARRGGBB)
-		self.picload.setPara((self["thn"].instance.size().width(), self["thn"].instance.size().height(), sc[0], sc[1], config.pic.cache.value, int(config.pic.resize.value), "#00000000", config.pic.autoOrientation.value))
+		self.picload.setPara((self["thn"].instance.size().width(), self["thn"].instance.size().height(), 1, 1, config.pic.cache.value, int(config.pic.resize.value), "#00000000", config.pic.autoOrientation.value))
 
 	def callbackView(self, val=0):
 		if val > 0:
@@ -172,9 +167,9 @@ class Pic_Setup(ConfigListScreen, Screen):
 class Pic_Exif(Screen):
 	skin = """
 		<screen name="Pic_Exif" position="center,center" size="560,360" title="Info" >
-			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphatest="on" />
-			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#9f1313" transparent="1" />
-			<widget source="menu" render="Listbox" position="5,50" size="550,310" scrollbarMode="showOnDemand" selectionDisabled="1" >
+			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphaTest="on" />
+			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#9f1313" transparent="1" />
+			<widget source="menu" render="Listbox" position="5,50" size="550,310" scrollbarMode="showOnDemand" selection="1" >
 				<convert type="TemplatedMultiContent">
 				{
 					"template": [  MultiContentEntryText(pos = (5, 5), size = (250, 30), flags = RT_HALIGN_LEFT, text = 0), MultiContentEntryText(pos = (260, 5), size = (290, 30), flags = RT_HALIGN_LEFT, text = 1)],
@@ -220,7 +215,7 @@ class Pic_Thumb(Screen):
 
 		self.textcolor = config.pic.textcolor.value
 		self.color = config.pic.bgcolor.value
-		self.spaceX, self.picX, self.spaceY, self.picY, textsize, thumtxt = parameters.get("PicturePlayerThumb", applySkinFactor(35, 190, 30, 200, 20, 14))
+		self.spaceX, self.picX, self.spaceY, self.picY, textsize, thumtxt = parameters.get("PicturePlayerThumb", (35, 190, 30, 200, 20, 14))
 
 		pic_frame = resolveFilename(SCOPE_CURRENT_SKIN, "icons/pic_frame.png")
 
@@ -245,12 +240,12 @@ class Pic_Thumb(Screen):
 			self.positionlist.append((absX, absY))
 			skincontent += "<widget source=\"label" + str(x) + "\" render=\"Label\" position=\"" + str(absX + 5) + "," + str(absY + self.picY - textsize) + "\" size=\"" + str(self.picX - 10) + "," + str(textsize) \
 					+ "\" font=\"Regular;" + str(thumtxt) + "\" zPosition=\"2\" transparent=\"1\" noWrap=\"1\" foregroundColor=\"" + self.textcolor + "\" />"
-			skincontent += "<widget name=\"thumb" + str(x) + "\" position=\"" + str(absX + 5) + "," + str(absY + 5) + "\" size=\"" + str(self.picX - 10) + "," + str(self.picY - (textsize * 2)) + "\" zPosition=\"2\" transparent=\"1\" alphatest=\"on\" />"
+			skincontent += "<widget name=\"thumb" + str(x) + "\" position=\"" + str(absX + 5) + "," + str(absY + 5) + "\" size=\"" + str(self.picX - 10) + "," + str(self.picY - (textsize * 2)) + "\" zPosition=\"2\" transparent=\"1\" alphaTest=\"on\" />"
 
 		# Screen, backgroundlabel and MovingPixmap
 		self.skin = "<screen position=\"0,0\" size=\"" + str(size_w) + "," + str(size_h) + "\" flags=\"wfNoBorder\" > \
 			<eLabel position=\"0,0\" zPosition=\"0\" size=\"" + str(size_w) + "," + str(size_h) + "\" backgroundColor=\"" + self.color + "\" />" \
-			+ "<widget name=\"frame\" position=\"" + str(self.spaceX) + "," + str(self.spaceY) + "\" size=\"" + str(self.picX) + "," + str(self.picY) + "\" pixmap=\"" + pic_frame + "\" zPosition=\"1\" alphatest=\"on\" />" \
+			+ "<widget name=\"frame\" position=\"" + str(self.spaceX) + "," + str(self.spaceY) + "\" size=\"" + str(self.picX) + "," + str(self.picY) + "\" pixmap=\"" + pic_frame + "\" zPosition=\"1\" alphaTest=\"on\" />" \
 			+ skincontent + "</screen>"
 
 		Screen.__init__(self, session)
@@ -305,8 +300,7 @@ class Pic_Thumb(Screen):
 		self.ThumbTimer.callback.append(self.showPic)
 
 	def setPicloadConf(self):
-		sc = getScale()
-		self.picload.setPara([self["thumb0"].instance.size().width(), self["thumb0"].instance.size().height(), sc[0], sc[1], config.pic.cache.value, int(config.pic.resize.value), self.color, config.pic.autoOrientation.value])
+		self.picload.setPara([self["thumb0"].instance.size().width(), self["thumb0"].instance.size().height(), 1, 1, config.pic.cache.value, int(config.pic.resize.value), self.color, config.pic.autoOrientation.value])
 		self.paintFrame()
 
 	def paintFrame(self):
@@ -413,10 +407,10 @@ class Pic_Full_View(Screen):
 			getDesktop(0).resize(eSize(size_w, size_h))
 
 		self.skin = "<screen position=\"0,0\" size=\"" + str(size_w) + "," + str(size_h) + "\" flags=\"wfNoBorder\" > \
-			<eLabel position=\"0,0\" zPosition=\"0\" size=\"" + str(size_w) + "," + str(size_h) + "\" backgroundColor=\"" + self.bgcolor + "\" /><widget name=\"pic\" position=\"" + str(space) + "," + str(space) + "\" size=\"" + str(size_w - (space * 2)) + "," + str(size_h - (space * 2)) + "\" zPosition=\"1\" alphatest=\"on\" /> \
-			<widget name=\"point\" position=\"" + str(space + 5) + "," + str(space + 2) + "\" size=\"20,20\" zPosition=\"2\" pixmap=\"icons/record.png\" alphatest=\"on\" /> \
-			<widget name=\"play_icon\" position=\"" + str(space + 25) + "," + str(space + 2) + "\" size=\"20,20\" zPosition=\"2\" pixmap=\"icons/ico_mp_play.png\"  alphatest=\"on\" /> \
-			<widget source=\"file\" render=\"Label\" position=\"" + str(space + 45) + "," + str(space) + "\" size=\"" + str(size_w - (space * 2) - 50) + ",25\" font=\"Regular;20\" borderWidth=\"1\" borderColor=\"#000000\" halign=\"left\" foregroundColor=\"" + self.textcolor + "\" zPosition=\"2\" noWrap=\"1\" transparent=\"1\" /></screen>"
+			<eLabel position=\"0,0\" zPosition=\"0\" size=\"" + str(size_w) + "," + str(size_h) + "\" backgroundColor=\"" + self.bgcolor + "\" /><widget name=\"pic\" position=\"" + str(space) + "," + str(space) + "\" size=\"" + str(size_w - (space * 2)) + "," + str(size_h - (space * 2)) + "\" zPosition=\"1\" alphaTest=\"on\" /> \
+			<widget name=\"point\" position=\"" + str(space + 5) + "," + str(space + 2) + "\" size=\"20,20\" zPosition=\"2\" pixmap=\"icons/record.png\" alphaTest=\"on\" /> \
+			<widget name=\"play_icon\" position=\"" + str(space + 25) + "," + str(space + 2) + "\" size=\"20,20\" zPosition=\"2\" pixmap=\"icons/ico_mp_play.png\"  alphaTest=\"on\" /> \
+			<widget source=\"file\" render=\"Label\" position=\"" + str(space + 45) + "," + str(space) + "\" size=\"" + str(size_w - (space * 2) - 50) + ",25\" font=\"Regular;20\" borderWidth=\"1\" borderColor=\"#000000\" horizontalAlignment=\"left\" foregroundColor=\"" + self.textcolor + "\" zPosition=\"2\" noWrap=\"1\" transparent=\"1\" /></screen>"
 
 		Screen.__init__(self, session)
 
@@ -485,9 +479,8 @@ class Pic_Full_View(Screen):
 		self.start_decode()
 
 	def setConf(self, retval=None):
-		sc = getScale()
 		#0=Width 1=Height 2=Aspect 3=use_cache 4=resize_type 5=Background(#AARRGGBB)
-		self.picload.setPara([self["pic"].instance.size().width(), self["pic"].instance.size().height(), sc[0], sc[1], 0, int(config.pic.resize.value), self.bgcolor, config.pic.autoOrientation.value])
+		self.picload.setPara([self["pic"].instance.size().width(), self["pic"].instance.size().height(), 1, 1, 0, int(config.pic.resize.value), self.bgcolor, config.pic.autoOrientation.value])
 
 	def ShowPicture(self):
 		if self.shownow and len(self.currPic):

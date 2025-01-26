@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from Components.config import config, ConfigSubsection, ConfigSelection, ConfigPIN, ConfigYesNo, ConfigSubList, ConfigInteger
 from Components.ServiceList import refreshServiceList
 from Screens.InputBox import PinInput
@@ -234,7 +235,8 @@ class ParentalControl:
 		return []
 
 	def save(self):
-		self.saveListToFile(LIST_BLACKLIST, self.blacklist)
+		if self.filesOpened:
+			self.saveListToFile(LIST_BLACKLIST, self.blacklist)
 
 	def open(self, save=False):
 		if save:

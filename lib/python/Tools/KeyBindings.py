@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from keyids import KEYIDS
 from Components.config import config
 from Components.RcModel import rc_model
@@ -161,6 +162,7 @@ keyDescriptions = [{  # id=0 - dmm0 remote directory, DM8000.
 	KEYIDS["KEY_F1"]: ("F1",),
 	KEYIDS["KEY_F2"]: ("F2",),
 	KEYIDS["KEY_F3"]: ("F3",),
+	KEYIDS["KEY_F6"]: ("PIP",),
 	KEYIDS["KEY_FASTFORWARD"]: ("FASTFORWARD",),
 	KEYIDS["KEY_FAVORITES"]: ("FAV",),
 	KEYIDS["KEY_FILE"]: ("LIST",),
@@ -175,7 +177,6 @@ keyDescriptions = [{  # id=0 - dmm0 remote directory, DM8000.
 	KEYIDS["KEY_MEDIA"]: ("MEDIA",),
 	KEYIDS["KEY_MENU"]: ("MENU",),
 	KEYIDS["KEY_MODE"]: ("VKEY",),
-	KEYIDS["KEY_MP3"]: ("MP3",),
 	KEYIDS["KEY_MUTE"]: ("MUTE",),
 	KEYIDS["KEY_NEXT"]: ("ARROWRIGHT",),
 	KEYIDS["KEY_NEXTSONG"]: ("NEXTSONG",),
@@ -188,7 +189,6 @@ keyDescriptions = [{  # id=0 - dmm0 remote directory, DM8000.
 	KEYIDS["KEY_PLAY"]: ("PLAY",),
 	KEYIDS["KEY_PLAYPAUSE"]: ("PLAYPAUSE",),
 	KEYIDS["KEY_POWER"]: ("POWER",),
-	KEYIDS["KEY_POWER2"]: ("POWER2",),
 	KEYIDS["KEY_PREVIOUS"]: ("ARROWLEFT",),
 	KEYIDS["KEY_PREVIOUSSONG"]: ("PREVIOUSSONG",),
 	KEYIDS["KEY_PROGRAM"]: ("TIMER",),
@@ -207,22 +207,21 @@ keyDescriptions = [{  # id=0 - dmm0 remote directory, DM8000.
 	KEYIDS["KEY_SLOW"]: ("SLOW",),
 	KEYIDS["KEY_STOP"]: ("STOP",),
 	KEYIDS["KEY_SUBTITLE"]: ("SUBTITLE",),
-	KEYIDS["KEY_SUSPEND"]: ("SUSPEND",),
 	KEYIDS["KEY_SWITCHVIDEOMODE"]: ("VMODE",),
 	KEYIDS["KEY_TEXT"]: ("TEXT",),
 	KEYIDS["KEY_TIME"]: ("TIMESHIFT",),
-	KEYIDS["KEY_TOUCHPAD_TOGGLE"]: ("TOUCHPAD_TOGGLE",),
 	KEYIDS["KEY_TV"]: ("TV",),
-	KEYIDS["KEY_TV2"]: ("TV2",),
 	KEYIDS["KEY_UP"]: ("UP",),
 	KEYIDS["KEY_VIDEO"]: ("VIDEO",),
 	# KEYIDS["KEY_VMODE"]: ("VMODE",),  # This value is deprecated use KEY_SWITCHVIDEOMODE instead.
-	KEYIDS["KEY_VOD"]: ("VOD",),
 	KEYIDS["KEY_VOLUMEDOWN"]: ("VOL-",),
 	KEYIDS["KEY_VOLUMEUP"]: ("VOL+",),
-	KEYIDS["KEY_WAKEUP"]: ("WAKEUP",),
 	KEYIDS["KEY_YELLOW"]: ("YELLOW",),
-	KEYIDS["KEY_ZOOM"]: ("ZOOM",)
+	KEYIDS["KEY_ZOOM"]: ("ZOOM",),
+	# Discrete power codes
+	KEYIDS["KEY_POWER2"]: ("POWER2",),
+	KEYIDS["KEY_SUSPEND"]: ("SUSPEND",),
+	KEYIDS["KEY_WAKEUP"]: ("WAKEUP",)
 }, {  # id=3 - XP1000.
 	# The xp1000/rcpositions file defines PLAY and PAUSE
 	# at the same location where it should just define
@@ -341,86 +340,6 @@ keyDescriptions = [{  # id=0 - dmm0 remote directory, DM8000.
 	KEYIDS["KEY_YELLOW"]: ("YELLOW",)
 }]
 
-labels = {  # This is not currently used anywhere. It is just present to populate the pot file.
-	"ABOUT": _("ABOUT"),
-	"ARROWLEFT": _("ARROWLEFT"),
-	"ARROWRIGHT": _("ARROWRIGHT"),
-	"AUDIO": _("AUDIO"),
-	"AUTOTIMER": _("AUTOTIMER"),
-	"BACK": _("BACK"),
-	"BLUE": _("BLUE"),
-	"BOUQUET+": _("BOUQUET+"),
-	"BOUQUET-": _("BOUQUET-"),
-	"CONTEXT": _("CONTEXT"),
-	"DOWN": _("DOWN"),
-	"EJECTCD": _("EJECTCD"),
-	"END": _("END"),
-	"ENTER": _("ENTER"),
-	"EPG": _("EPG"),
-	"EPGSETUP": _("EPGSETUP"),
-	"EXIT": _("EXIT"),
-	"FASTFORWARD": _("FASTFORWARD"),
-	"FAV": _("FAV"),
-	"FAVORITES": _("FAVORITES"),
-	"FORWARD": _("FORWARD"),
-	"GREEN": _("GREEN"),
-	"HELP": _("HELP"),
-	"HISTORY": _("HISTORY"),
-	"HOME": _("HOME"),
-	"HOMEPAGE": _("HOMEPAGE"),
-	"INFO": _("INFO"),
-	"LAN": _("LAN"),
-	"LEFT": _("LEFT"),
-	"LIST": _("LIST"),
-	"MEDIA": _("MEDIA"),
-	"MENU": _("MENU"),
-	"MUTE": _("MUTE"),
-	"NEXTSONG": _("NEXTSONG"),
-	"OK": _("OK"),
-	"OPTION": _("OPTION"),
-	"PAGEDOWN": _("PAGEDOWN"),
-	"PAGEUP": _("PAGEUP"),
-	"PAUSE": _("PAUSE"),
-	"PLAY": _("PLAY"),
-	"PLAYLIST": _("PLAYLIST"),
-	"PLAYPAUSE": _("PLAYPAUSE"),
-	"PLUGIN": _("PLUGIN"),
-	"PORTAL": _("PORTAL"),
-	"POWER": _("POWER"),
-	"POWER2": _("POWER2"),
-	"PREVIOUSSONG": _("PREVIOUSSONG"),
-	"PVR": _("PVR"),
-	"RADIO": _("RADIO"),
-	"RECALL": _("RECALL"),
-	"RECORD": _("RECORD"),
-	"RED": _("RED"),
-	"REWIND": _("REWIND"),
-	"RIGHT": _("RIGHT"),
-	"SAT": _("SAT"),
-	"SCREEN": _("SCREEN"),
-	"SETUP": _("SETUP"),
-	"SLEEP": _("SLEEP"),
-	"SLOW": _("SLOW"),
-	"STOP": _("STOP"),
-	"SUBTITLE": _("SUBTITLE"),
-	"SUSPEND": _("SUSPEND"),
-	"TEXT": _("TEXT"),
-	"TIMER": _("TIMER"),
-	"TIMESHIFT": _("TIMESHIFT"),
-	"TV": _("TV"),
-	"UP": _("UP"),
-	"VIDEO": _("VIDEO"),
-	"VKEY": _("VKEY"),
-	"VMODE": _("VMODE"),
-	"VOL+": _("VOL+"),
-	"VOL-": _("VOL-"),
-	"WAKEUP": _("WAKEUP"),
-	"WIZTV": _("WIZTV"),
-	"WWW": _("WWW"),
-	"YELLOW": _("YELLOW"),
-	"ZOOM": _("ZOOM"),
-}
-
 
 def addKeyBinding(domain, key, context, action, flags):
 	keyBindings.setdefault((context, action), []).append((key, domain, flags))
@@ -452,22 +371,19 @@ def queryKeyBinding(context, action):
 
 
 def getKeyDescription(key):
-	if rc_model.rcIsDefault():
-		idx = config.misc.rcused.value
+	rcType = config.plugins.remotecontroltype.rctype.value
+	# rcType = config.misc.inputdevices.rcType.value
+	if rcType == 14:  # XP1000
+		idx = 3
+	elif rcType == 18:  # F1
+		idx = 4
 	else:
-		rcType = config.plugins.remotecontroltype.rctype.value
-		# rcType = config.misc.inputdevices.rcType.value
-		if rcType == 14:  # XP1000
-			idx = 3
-		elif rcType == 18:  # F1
-			idx = 4
-		else:
-			idx = 2
+		idx = 2
 	return keyDescriptions[idx].get(key)
 
 
 def getKeyBindingKeys(filterfn=lambda key: True):
-	return filter(filterfn, keyBindings)
+	return list(filter(filterfn, keyBindings))
 
 # Remove all entries of domain "domain".
 #
@@ -476,7 +392,3 @@ def getKeyBindingKeys(filterfn=lambda key: True):
 def removeKeyBindings(domain):
 	for x in keyBindings:
 		keyBindings[x] = [e for e in keyBindings[x] if e[1] != domain]
-
-
-def getFpAndKbdKeys():  # used by HelpMenuList
-	return {k for i in keyDescriptions for k, v in i.items() if len(v) > 1 and v[1] in ("fp", "kbd")}

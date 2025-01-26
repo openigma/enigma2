@@ -187,14 +187,14 @@ static PyObject *
 eConsolePy_write(eConsolePy* self, PyObject *args)
 {
 	char *data;
-	int data_len;
 	int len = -1;
-	if (!PyArg_ParseTuple(args, "s#|i", &data, &data_len, &len))
+	if (!PyArg_ParseTuple(args, "s|i", &data, &len))
 	{
 		PyErr_SetString(PyExc_TypeError,
 			"1st arg must be a string, optionaly 2nd arg can be the string length");
 		return NULL;
 	}
+	int data_len = strlen(data);
 	if (len < 0)
 		len = data_len;	
 	self->cont->write(data, len);
@@ -233,6 +233,12 @@ eConsolePy_kill(eConsolePy* self)
 	self->cont->kill();
 	Py_RETURN_NONE;
 }
+
+	static PyObject *
+	eConsolePy_waitPID(eConsolePy* self)
+	{
+		return PyLong_FromLong(self->cont->waitPID());
+	}
 
 static PyObject *
 eConsolePy_sendCtrlC(eConsolePy* self)
@@ -314,7 +320,10 @@ static PyMethodDef eConsolePy_methods[] = {
 	 (char*)"set input file"
 	},
 	{(char*)"getPID", (PyCFunction)eConsolePy_getPID, METH_NOARGS,
-	 (char*)"execute command"
+	 (char*)"get PID"
+	},
+	{(char*)"waitPID", (PyCFunction)eConsolePy_waitPID, METH_NOARGS,
+	 (char*)"wait"
 	},
 	{(char*)"kill", (PyCFunction)eConsolePy_kill, METH_NOARGS,
 	 (char*)"kill application"

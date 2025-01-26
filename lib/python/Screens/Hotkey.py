@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from Components.ActionMap import ActionMap, HelpableActionMap, NumberActionMap
 from Components.Sources.StaticText import StaticText
 from Components.ChoiceList import ChoiceList, ChoiceEntryComponent
@@ -11,10 +12,18 @@ from Plugins.Plugin import PluginDescriptor
 from Tools.BoundFunction import boundFunction
 from Tools.Directories import resolveFilename, SCOPE_PLUGINS
 from ServiceReference import ServiceReference
-from enigma import eServiceReference
+from enigma import eServiceReference, getDesktop
 from Components.Pixmap import Pixmap
 from Components.Label import Label
 import os
+
+def getDesktopSize():
+	s = getDesktop(0).size()
+	return (s.width(), s.height())
+
+def isHD():
+	desktopSize = getDesktopSize()
+	return desktopSize[0] == 1280
 
 
 class hotkey:
@@ -81,9 +90,6 @@ class hotkey:
 		("Skip back", "skip_back", ""),
 		("Skip forward", "skip_forward", ""),
 		("Activate PiP", "activatePiP", ""),
-		("Activate PiP" + " " + _("long"), "activatePiP_long", ""),
-		("History", "history", ""),
-		("History" + " " + _("long"), "history_long", ""),
 		("Timer", "timer", ""),
 		("Timer" + " " + _("long"), "timer_long", ""),
 		("Playlist", "playlist", ""),
@@ -186,6 +192,7 @@ def getHotkeyFunctions():
 	hotkey.functions.append((_("Stop timeshift"), "Infobar/stopTimeshift", "InfoBar"))
 	hotkey.functions.append((_("Start teletext"), "Infobar/startTeletext", "InfoBar"))
 	hotkey.functions.append((_("Show subservice selection"), "Infobar/subserviceSelection", "InfoBar"))
+	hotkey.functions.append((_("Show subtitle quick menu"), "Infobar/subtitleQuickMenu", "InfoBar"))
 	hotkey.functions.append((_("Show subtitle selection"), "Infobar/subtitleSelection", "InfoBar"))
 	hotkey.functions.append((_("Show InfoBar"), "Infobar/showFirstInfoBar", "InfoBar"))
 	hotkey.functions.append((_("Show second InfoBar"), "Infobar/showSecondInfoBar", "InfoBar"))
@@ -200,6 +207,9 @@ def getHotkeyFunctions():
 	hotkey.functions.append((_("Activate HbbTV (Redbutton)"), "Infobar/activateRedButton", "InfoBar"))
 	if BoxInfo.getItem("HasHDMIin"):
 		hotkey.functions.append((_("Toggle HDMI In"), "Infobar/HDMIIn", "InfoBar"))
+	if BoxInfo.getItem("HasHDMIinFHD"):
+		hotkey.functions.append((_("Toggle HDMI-In full screen"), "Infobar/HDMIInFull", "InfoBar"))
+		hotkey.functions.append((_("Toggle HDMI-In PiP"), "Infobar/HDMIInPiP", "InfoBar"))
 	if BoxInfo.getItem("LcdLiveTV"):
 		hotkey.functions.append((_("Toggle LCD LiveTV"), "Infobar/ToggleLCDLiveTV", "InfoBar"))
 	hotkey.functions.append((_("Toggle dashed flickering line for this service"), "Infobar/ToggleHideVBI", "InfoBar"))
@@ -219,6 +229,8 @@ def getHotkeyFunctions():
 	for plugin in plugins.getPluginsForMenu("scan"):
 		hotkey.functions.append((plugin[0], "MenuPlugin/scan/" + plugin[2], "Scanning"))
 	hotkey.functions.append((_("Network"), "Module/Screens.NetworkSetup/NetworkAdapterSelection", "Setup"))
+	hotkey.functions.append((_("Skin"), "Module/Screens.SkinSelector/SkinSelector", "Setup"))
+	hotkey.functions.append((_("Display skin"), "Module/Screens.SkinSelector/LcdSkinSelector", "Setup"))
 	hotkey.functions.append((_("Plugin Browser"), "Module/Screens.PluginBrowser/PluginBrowser", "Setup"))
 	hotkey.functions.append((_("Sleeptimer edit"), "Module/Screens.SleepTimerEdit/SleepTimerEdit", "Setup"))
 	hotkey.functions.append((_("Channel Info"), "Module/Screens.ServiceInfo/ServiceInfo", "Setup"))
@@ -233,6 +245,7 @@ def getHotkeyFunctions():
 		if plugin[2]:
 			hotkey.functions.append((plugin[0], "MenuPlugin/gui/" + plugin[2], "Setup"))
 	hotkey.functions.append((_("Skin Selection"), "Module/Screens.SkinSelector/SkinSelector", "Setup"))
+	hotkey.functions.append((_("Reload Skin"), "ReloadSkin/", "Setup"))
 	hotkey.functions.append((_("PowerMenu"), "Menu/shutdown", "Power"))
 	hotkey.functions.append((_("Standby"), "Module/Screens.Standby/Standby", "Power"))
 	hotkey.functions.append((_("Restart"), "Module/Screens.Standby/TryQuitMainloop/2", "Power"))
@@ -243,10 +256,12 @@ def getHotkeyFunctions():
 	hotkey.functions.append((_("Recording Setup"), "Setup/recording", "Setup"))
 	hotkey.functions.append((_("Harddisk Setup"), "Setup/harddisk", "Setup"))
 	hotkey.functions.append((_("Subtitles Settings"), "Setup/subtitlesetup", "Setup"))
-	hotkey.functions.append((_("Language"), "Module/Screens.LanguageSelection/LanguageSelection", "Setup"))
+	hotkey.functions.append((_("Language"), "Module/Screens.LocaleSelection/LocaleSelection", "Setup"))
+	hotkey.functions.append((_("OScam/Ncam Info"), "Module/Screens.OScamInfo/OscamInfoMenu", "Plugins"))
 	hotkey.functions.append((_("Memory Info"), "Module/Screens.About/MemoryInfo", "Setup"))
 	if BoxInfo.getItem("canMultiBoot"):
 		hotkey.functions.append((_("Multiboot image selector"), "Module/Screens.FlashImage/MultibootSelection", "Setup"))
+		hotkey.functions.append((_("MultiBoot Manager"), "Module/Screens.MultiBootManager/MultiBootManager", "Setup"))
 	if os.path.isdir("/etc/ppanels"):
 		for x in [x for x in os.listdir("/etc/ppanels") if x.endswith(".xml")]:
 			x = x[:-4]
@@ -268,7 +283,31 @@ for x in hotkey.hotkeys:
 
 
 class HotkeySetup(Screen):
-	ALLOW_SUSPEND = False
+
+	if isHD():
+		skin = '''
+			<screen name="HotkeySetup" position="center,center" size="560,437" title="Input">
+				<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphaTest="on" zPosition="1"/>
+				<widget name="key_red" position="0,0" zPosition="2" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#9f1313" transparent="1"/>
+				<widget name="list" position="0,45" size="280,350" scrollbarMode="showOnDemand"/>
+				<widget name="choosen" position="280,45" size="280,350" scrollbarMode="showOnDemand"/>
+				<widget name="description" position="5,405" size="550,32" zPosition="1" font="Regular;16" verticalAlignment="bottom"/>
+			</screen>
+		'''
+	else:
+		skin = '''
+			<screen name="HotkeySetup" position="center,center" size="800,870" title="Input">
+				<ePixmap pixmap="buttons/red.png" position="0,0" size="200,40" alphaTest="on" zPosition="1" />				
+				<widget objectTypes="key_red,StaticText" source="key_red" render="Pixmap" pixmap="buttons/red.png" position="0,0" size="200,40" zPosition="1" alphaTest="blend">
+					<convert type="ConditionalShowHide"/>
+				</widget>
+				<widget objectTypes="key_red,Label,Button" name="key_red" position="0,0" size="200,40" backgroundColor="#9f1313" zPosition="1" transparent="1" font="Regular;34" horizontalAlignment="left"/>
+				<widget objectTypes="key_red,StaticText" source="key_red" render="Label" position="0,0" size="200,40" backgroundColor="#9f1313" zPosition="2" transparent="1" font="Regular;28" horizontalAlignment="left"/>
+				<widget name="list" font="Regular;28" itemHeight="40" position="0,70" size="370,733" scrollbarMode="showOnDemand"/>
+				<widget name="choosen" font="Regular;28" itemHeight="40" position="375,70" size="420,733" scrollbarMode="showOnDemand"/>
+				<widget name="description" position="5,805" size="793,65" zPosition="1" font="Regular;25" verticalAlignment="bottom"/>
+			</screen>
+		'''
 
 	def __init__(self, session, args=None):
 		Screen.__init__(self, session)
@@ -363,6 +402,50 @@ class HotkeySetup(Screen):
 
 
 class HotkeySetupSelect(Screen):
+	if isHD():
+		skin = '''
+			<screen name="HotkeySetupSelect" position="center,center" size="560,437" title="Input">
+				<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphaTest="on"/>
+				<ePixmap pixmap="buttons/green.png" position="140,0" size="140,40" alphaTest="on"/>
+				<widget name="h_yellow" pixmap="buttons/yellow.png" position="280,0" size="140,40" alphaTest="on"/>
+				<widget name="key_red" position="0,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#9f1313" transparent="1"/>
+				<widget name="key_green" position="140,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#1f771f" transparent="1"/>
+				<widget name="key_yellow" position="280,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#1f771f" transparent="1"/>
+				<widget name="h_prev" pixmap="buttons/key_prev.png" zPosition="1" alphaTest="blend" position="430,8" size="35,25"/>
+				<widget name="h_next" pixmap="buttons/key_next.png" zPosition="1" alphaTest="blend" position="460,8" size="35,25"/>
+				<widget name="list" position="0,45" size="280,350" scrollbarMode="showOnDemand"/>
+				<widget name="choosen" position="280,45" size="280,350" scrollbarMode="showOnDemand"/>
+				<widget name="description" position="5,405" size="550,32" zPosition="1" font="Regular;16" verticalAlignment="bottom"/>
+			</screen>
+		'''
+	else:
+		skin = '''
+			<screen name="HotkeySetupSelect" position="center,center" size="800,870" title="Input">
+				<ePixmap pixmap="buttons/red.png" position="0,0" size="200,40" alphaTest="on" zPosition="1" />				
+				<widget objectTypes="key_red,StaticText" source="key_red" render="Pixmap" pixmap="buttons/red.png" position="0,0" size="200,40" zPosition="1" alphaTest="blend">
+					<convert type="ConditionalShowHide"/>
+				</widget>
+				<widget objectTypes="key_red,Label,Button" name="key_red" position="0,0" size="200,40" backgroundColor="#9f1313" zPosition="1" transparent="1" font="Regular;34" horizontalAlignment="left"/>
+				<widget objectTypes="key_red,StaticText" source="key_red" render="Label" position="0,0" size="200,40" backgroundColor="#9f1313" zPosition="2" transparent="1" font="Regular;28" horizontalAlignment="left"/>
+				<ePixmap pixmap="buttons/green.png" position="200,0" size="200,40" alphaTest="on"/>
+				<widget objectTypes="key_green,StaticText" source="key_green" render="Pixmap" pixmap="buttons/green.png" position="200,0" size="200,40" zPosition="1" alphaTest="blend">
+					<convert type="ConditionalShowHide"/>
+				</widget>
+				<widget objectTypes="key_green,Label,Button" name="key_green" position="200,0" size="200,40" backgroundColor="#9f1313" zPosition="1" transparent="1" font="Regular;34" horizontalAlignment="left"/>
+				<widget objectTypes="key_green,StaticText" source="key_green" render="Label" position="200,0" size="200,40" backgroundColor="#9f1313" zPosition="2" transparent="1" font="Regular;28" horizontalAlignment="left"/>
+				<widget objectTypes="key_yellow,StaticText" source="key_yellow" render="Pixmap" pixmap="buttons/yellow.png" position="400,0" size="200,40" zPosition="1" alphaTest="blend">
+					<convert type="ConditionalShowHide"/>
+				</widget>
+				<widget objectTypes="key_yellow,Label,Button" name="key_yellow" position="400,0" size="200,40" backgroundColor="#9f1313" zPosition="1" transparent="1" font="Regular;34" horizontalAlignment="left"/>
+				<widget objectTypes="key_yellow,StaticText" source="key_yellow" render="Label" position="400,0" size="200,40" backgroundColor="#9f1313" zPosition="2" transparent="1" font="Regular;28" horizontalAlignment="left"/>
+				<widget name="h_prev" pixmap="buttons/key_prev.png" zPosition="1" alphaTest="blend" position="710,8" size="35,25"/>
+				<widget name="h_next" pixmap="buttons/key_next.png" zPosition="1" alphaTest="blend" position="750,8" size="35,25"/>
+				<widget name="list" font="Regular;28" itemHeight="40" position="0,70" size="370,733" scrollbarMode="showOnDemand"/>
+				<widget name="choosen" font="Regular;28" itemHeight="40" position="375,70" size="420,733" scrollbarMode="showOnDemand"/>
+				<widget name="description" position="5,805" size="793,65" zPosition="1" font="Regular;25" verticalAlignment="bottom"/>
+			</screen>
+		'''
+
 	def __init__(self, session, key, args=None):
 		Screen.__init__(self, session)
 		self.key = key
@@ -673,7 +756,7 @@ class InfoBarHotkey:
 					return 0
 			elif selected[0] == "Module":
 				try:
-					exec("from %s import %s" % (selected[1], selected[2]))
+					exec("from %s import %s" % (selected[1], selected[2]), globals())
 					exec("self.session.open(%s)" % ",".join(selected[2:]))
 				except Exception as e:
 					print("[Hotkey] error during executing module %s, screen %s, %s" % (selected[1], selected[2], e))
@@ -730,6 +813,10 @@ class InfoBarHotkey:
 					if x.get("key") == selected[1]:
 						menu_screen = self.session.open(MainMenu, x)
 						break
+			elif selected[0] == "ReloadSkin":
+				from skin import reloadSkins
+				reloadSkins()
+				self.session.reloadDialogs()
 
 	def showServiceListOrMovies(self):
 		if hasattr(self, "openServiceList"):

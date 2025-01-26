@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from Screens.Screen import Screen
 from Screens.MessageBox import MessageBox
 from Components.config import config
@@ -14,10 +15,12 @@ from Components.Label import Label
 from Components.ProgressBar import ProgressBar
 
 from Tools.StbHardware import getFPVersion
-from enigma import eTimer, eLabel, eConsoleAppContainer, getDesktop, eGetEnigmaDebugLvl
+from enigma import eAVControl, eTimer, eLabel, eConsoleAppContainer, getDesktop, eGetEnigmaDebugLvl
 
 from Components.GUIComponent import GUIComponent
-from skin import applySkinFactor, parameters, parseScale
+from skin import parameters
+
+from time import strftime
 
 import os
 import glob
@@ -38,7 +41,9 @@ class About(Screen):
 		AboutText += _("Image: ") + about.getImageTypeString() + "\n"
 		AboutText += _("OE Version: ") + about.getOEVersionString() + "\n"
 		AboutText += _("Build date: ") + about.getBuildDateString() + "\n"
-		AboutText += _("Last update: ") + about.getUpdateDateString() + "\n"
+		ImageVersion = _("Last update: ") + about.getImageVersionString()
+		self["ImageVersion"] = StaticText(ImageVersion)
+		AboutText += ImageVersion + "\n"
 
 		# [WanWizard] Removed until we find a reliable way to determine the installation date
 		# AboutText += _("Installed: ") + about.getFlashDateString() + "\n"
@@ -52,27 +57,11 @@ class About(Screen):
 
 		AboutText += _("DVB driver version: ") + about.getDriverInstalledDate() + "\n"
 
-		GStreamerVersion = about.getGStreamerVersionString().replace("GStreamer", "")
-		self["GStreamerVersion"] = StaticText(GStreamerVersion)
+		AboutText += _("GStreamer version: ") + about.getGStreamerVersionString() + "\n"
 
-		ffmpegVersion = about.getffmpegVersionString()
-		self["ffmpegVersion"] = StaticText(ffmpegVersion)
+		AboutText += _("FFmpeg version: ") + about.getffmpegVersionString() + "\n"
 
-		player = None
-
-		if os.path.isfile('/var/lib/opkg/info/enigma2-plugin-systemplugins-servicemp3.list'):
-			if GStreamerVersion:
-				player = _("Media player") + ": Gstreamer, " + _("version") + " " + GStreamerVersion
-		if os.path.isfile('/var/lib/opkg/info/enigma2-plugin-systemplugins-servicehisilicon.list'):
-			if os.path.isdir("/usr/lib/hisilicon") and glob.glob("/usr/lib/hisilicon/libavcodec.so.*"):
-				player = _("Media player") + ": ffmpeg, " + _("Hardware Accelerated")
-			elif ffmpegVersion and ffmpegVersion[0].isdigit():
-				player = _("Media player") + ": ffmpeg, " + _("version") + " " + ffmpegVersion
-
-		if player is None:
-				player = _("Media player") + ": " + _("Not Installed")
-
-		AboutText += player + "\n"
+		AboutText += _("OpenSSL version: ") + about.getOpenSSLVersion() + "\n"
 
 		AboutText += _("Python version: ") + about.getPythonVersionString() + "\n"
 
@@ -88,6 +77,11 @@ class About(Screen):
 		self["FPVersion"] = StaticText(fp_version)
 
 		AboutText += _('Skin & Resolution: %s (%sx%s)\n') % (config.skin.primary_skin.value.split('/')[0], getDesktop(0).size().width(), getDesktop(0).size().height())
+
+		edidPath = eAVControl.getInstance().getEDIDPath()
+		if edidPath:
+			edidPath = eConsoleAppContainer().execute("/usr/bin/edid-decode")
+			AboutText += _("EDID: ") + str(edidPath) + "\n"
 
 		self["TunerHeader"] = StaticText(_("Detected NIMs:"))
 		AboutText += "\n" + _("Detected NIMs:") + "\n"
@@ -368,14 +362,14 @@ class MemoryInfo(Screen):
 class MemoryInfoSkinParams(GUIComponent):
 	def __init__(self):
 		GUIComponent.__init__(self)
-		self.rows_in_column = applySkinFactor(25)
+		self.rows_in_column = 25
 
 	def applySkin(self, desktop, screen):
 		if self.skinAttributes is not None:
 			attribs = []
 			for (attrib, value) in self.skinAttributes:
 				if attrib == "rowsincolumn":
-					self.rows_in_column = parseScale(value)
+					self.rows_in_column = int(value)
 			self.skinAttributes = attribs
 		return GUIComponent.applySkin(self, desktop, screen)
 

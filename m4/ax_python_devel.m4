@@ -341,7 +341,7 @@ EOD`
 			else
 			# check for OpenPli 3.9 build returns full path
 				length=${#python_path}
-				AC_MSG_RESULT([$length])							
+				AC_MSG_RESULT([$length])
 				if [[ "${#python_path}" -gt 24 ]]
 				then
 					plat_python_path=`echo "$plat_python_path" | sed "s_-native__"`
@@ -492,4 +492,3 @@ print(sitedir)"`
 	# all done!
 	#
 ])
-

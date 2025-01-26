@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from Components.Renderer.Renderer import Renderer
 from enigma import ePositionGauge
 
@@ -52,7 +53,8 @@ class PositionGauge(Renderer):
 
 	def setCutlist(self, cutlist):
 		if self.__cutlist != cutlist:
-			self.__cutlist = cutlist
+			# E2 Bug: Use a list copy instead of a reference
+			self.__cutlist = cutlist[:]
 			if self.instance is not None:
 				self.instance.setInOutList(cutlist)
 

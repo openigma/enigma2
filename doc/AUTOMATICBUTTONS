@@ -54,6 +54,7 @@ Example widget with colored text:
   alignment="left"
   zPosition="2"
   spacing="10"
+  spacingPixmapText="10" />
   spacingPixmapText="10"
   buttonCornerRadius="6" />
 
@@ -72,9 +73,7 @@ It is also possible to have colored text and no graphics:
   zPosition="2"
   spacing="10"
   buttonCornerRadius="6" />
-
 Superimpose text over the graphic rather that have the graphic to the side of the text.
-
 <widget 
   addon="ColorButtonsSequence"
   connection="key_red,key_green,key_yellow,key_blue" 
@@ -89,9 +88,7 @@ Superimpose text over the graphic rather that have the graphic to the side of th
   spacingPixmapText="10" 
   buttonCornerRadius="6" 
   renderType="ImageTextOver" />
-
 Superimpose texted over a coloured background (no graphic).
-
 <widget addon="ColorButtonsSequence" 
   connection="key_red,key_green,key_yellow,key_blue" 
   textColors="key_red:red,key_green:green,key_yellow:yellow,key_blue:blue" 

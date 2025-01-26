@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import struct
 import RecordTimer
@@ -9,10 +10,10 @@ from Components.config import config
 from Components.AVSwitch import AVSwitch
 from Components.Console import Console
 from Components.ImportChannels import ImportChannels
-from Components.SystemInfo import BoxInfo
+from Components.SystemInfo import BoxInfo, getBoxDisplayName
 from Components.Sources.StreamService import StreamServiceList
 from Components.Task import job_manager
-from Tools.Directories import mediafilesInUse
+from Tools.Directories import mediaFilesInUse
 from Tools.Notifications import AddNotification
 from time import time, localtime
 from GlobalActions import globalActionMap
@@ -28,7 +29,8 @@ QUIT_UPGRADE_FP = 4
 QUIT_ERROR_RESTART = 5
 QUIT_DEBUG_RESTART = 6
 QUIT_MANUFACTURER_RESET = 7
-QUIT_MAINT = 16
+QUIT_KODI = 15
+QUIT_RRECVERY_MODE = 16
 QUIT_UPGRADE_PROGRAM = 42
 QUIT_IMAGE_RESTORE = 43
 
@@ -109,10 +111,8 @@ class StandbyScreen(Screen):
 
 		self.infoBarInstance and hasattr(self.infoBarInstance, "sleepTimer") and self.infoBarInstance.sleepTimer.stop()
 
-		if BoxInfo.getItem("ScartSwitch"):
-			self.avswitch.setInput("SCART")
-		else:
-			self.avswitch.setInput("AUX")
+		#set input to vcr scart
+		self.avswitch.setInput("off")
 
 		gotoShutdownTime = int(config.usage.standby_to_shutdown_timer.value)
 		if gotoShutdownTime:
@@ -150,7 +150,7 @@ class StandbyScreen(Screen):
 		globalActionMap.setEnabled(True)
 		if RecordTimer.RecordTimerEntry.receiveRecordEvents:
 			RecordTimer.RecordTimerEntry.stopTryQuitMainloop()
-		self.avswitch.setInput("ENCODER")
+		self.avswitch.setInput("encoder")
 		self.leaveMute()
 		if os.path.exists("/usr/script/standby_leave.sh"):
 			Console().ePopen("/usr/script/standby_leave.sh")
@@ -169,7 +169,7 @@ class StandbyScreen(Screen):
 		self.close(True)
 
 	def setMute(self):
-		self.wasMuted = eDVBVolumecontrol.getInstance().isMuted()
+		self.wasMuted = eDVBVolumecontrol.getInstance().isMuted(True)
 		if not self.wasMuted:
 			eDVBVolumecontrol.getInstance().volumeMute()
 
@@ -197,7 +197,7 @@ class StandbyScreen(Screen):
 							duration += 24 * 3600
 						self.standbyTimeoutTimer.startLongTimer(duration)
 						return
-		if self.session.screen["TunerInfo"].tuner_use_mask or mediafilesInUse(self.session):
+		if self.session.screen["TunerInfo"].tuner_use_mask or mediaFilesInUse(self.session):
 			self.standbyTimeoutTimer.startLongTimer(600)
 		else:
 			RecordTimer.RecordTimerEntry.TryQuitMainloop()
@@ -235,7 +235,7 @@ class Standby(StandbyScreen):
 class StandbySummary(Screen):
 	skin = """
 	<screen position="0,0" size="132,64">
-		<widget source="global.CurrentTime" render="Label" position="0,0" size="132,64" font="Regular;40" halign="center">
+		<widget source="global.CurrentTime" render="Label" position="0,0" size="132,64" font="Regular;40" horizontalAlignment="center">
 			<convert type="ClockToText" />
 		</widget>
 		<widget source="session.RecordState" render="FixedLabel" text=" " position="0,0" size="132,64" zPosition="1" >
@@ -248,18 +248,21 @@ class StandbySummary(Screen):
 class QuitMainloopScreen(Screen):
 	def __init__(self, session, retvalue=QUIT_SHUTDOWN):
 		self.skin = """<screen name="QuitMainloopScreen" position="fill" flags="wfNoBorder">
-				<ePixmap pixmap="icons/input_info.png" position="c-27,c-60" size="53,53" alphatest="on" />
-				<widget name="text" position="center,c+5" size="720,100" font="Regular;22" halign="center" />
+				<ePixmap pixmap="icons/input_info.png" position="c-27,c-60" size="53,53" alphaTest="on" />
+				<widget name="text" position="center,c+5" size="720,100" font="Regular;22" horizontalAlignment="center" />
 			</screen>"""
 		Screen.__init__(self, session)
 		from Components.Label import Label
 		text = {
-			QUIT_SHUTDOWN: _("Your receiver is shutting down"),
-			QUIT_REBOOT: _("Your receiver is rebooting"),
-			QUIT_RESTART: _("The user interface of your receiver is restarting"),
-			QUIT_UPGRADE_FP: _("Your frontprocessor will be updated\nPlease wait until your receiver reboots\nThis may take a few minutes"),
-			QUIT_DEBUG_RESTART: _("The user interface of your receiver is restarting in debug mode"),
-			QUIT_UPGRADE_PROGRAM: _("Unattended update in progress\nPlease wait until your receiver reboots\nThis may take a few minutes"),
+			QUIT_SHUTDOWN: _("Your %s %s is shutting down") % getBoxDisplayName(),
+			QUIT_REBOOT: _("Your %s %s is rebooting") % getBoxDisplayName(),
+			QUIT_RESTART: _("The user interface of your %s %s is restarting") % getBoxDisplayName(),
+			QUIT_KODI: _("The user interface of your %s %s will be stopped to run Kodi") % getBoxDisplayName(),
+			QUIT_UPGRADE_FP: _("Your front panel processor will be upgraded\nPlease wait until your %s %s reboots\nThis may take a few minutes") % getBoxDisplayName(),
+			QUIT_DEBUG_RESTART: _("The user interface of your %s %s is restarting\ndue to an error in StartEnigma.py") % getBoxDisplayName(),
+			QUIT_RRECVERY_MODE: _("Your %s %s is rebooting into Recovery Mode") % getBoxDisplayName(),
+			QUIT_UPGRADE_PROGRAM: _("Unattended update in progress\nPlease wait until your %s %s reboots\nThis may take a few minutes") % getBoxDisplayName(),
+			QUIT_IMAGE_RESTORE: _("Reflash in progress\nPlease wait until your %s %s reboots\nThis may take a few minutes") % getBoxDisplayName(),
 			QUIT_MANUFACTURER_RESET: _("Manufacturer reset in progress\nPlease wait until enigma2 restarts")
 		}.get(retvalue)
 		self["text"] = Label(text)
@@ -287,7 +290,7 @@ def getReasons(session, retvalue=QUIT_SHUTDOWN):
 		reasons.append(_("You seem to be in timeshift!"))
 	if [stream for stream in eStreamServer.getInstance().getConnectedClients() if stream[0] != '127.0.0.1'] or StreamServiceList:
 		reasons.append(_("Client is streaming from this box!"))
-	if not reasons and mediafilesInUse(session) and retvalue in (QUIT_SHUTDOWN, QUIT_REBOOT, QUIT_UPGRADE_FP, QUIT_UPGRADE_PROGRAM):
+	if not reasons and mediaFilesInUse(session) and retvalue in (QUIT_SHUTDOWN, QUIT_REBOOT, QUIT_KODI, QUIT_UPGRADE_FP, QUIT_UPGRADE_PROGRAM):
 		reasons.append(_("A file from media is in use!"))
 	return "\n".join(reasons)
 
@@ -302,9 +305,12 @@ class TryQuitMainloop(MessageBox):
 				QUIT_SHUTDOWN: _("Really shutdown now?"),
 				QUIT_REBOOT: _("Really reboot now?"),
 				QUIT_RESTART: _("Really restart now?"),
+				QUIT_KODI: _("Really start Kodi and stop user interface now?"),
 				QUIT_UPGRADE_FP: _("Really update the frontprocessor and reboot now?"),
 				QUIT_DEBUG_RESTART: _("Really restart in debug mode now?"),
-				QUIT_UPGRADE_PROGRAM: _("Really update your settop box and reboot now?"),
+				QUIT_RRECVERY_MODE: _("Really reboot into Recovery Mode?"),
+				QUIT_UPGRADE_PROGRAM: _("Really update your %s %s and reboot now?") % getBoxDisplayName(),
+				QUIT_IMAGE_RESTORE: _("Really reflash your %s %s and reboot now?") % getBoxDisplayName(),
 				QUIT_MANUFACTURER_RESET: _("Really perform a manufacturer reset now?")
 			}.get(retvalue, None)
 			if text:

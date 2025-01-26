@@ -1,45 +1,101 @@
 # -*- coding: utf-8 -*-
-import os
-import time
-import re
+from array import array
+from binascii import hexlify
+from fcntl import ioctl
+from glob import glob
+from os import stat
+from os.path import isfile
+from platform import libc_ver
+from re import search
 from Tools.HardwareInfo import HardwareInfo
 from Components.SystemInfo import BoxInfo
-from sys import maxsize, modules, version_info
+from sys import maxsize, modules, version_info, version as pyversion
+from Tools.Directories import fileReadLine, fileReadLines
+from subprocess import PIPE, Popen
+from socket import AF_INET, SOCK_DGRAM, inet_ntoa, socket
+from struct import pack, unpack
+from time import localtime, strftime
+
+MODULE_NAME = __name__.split(".")[-1]
+
+socfamily = BoxInfo.getItem("socfamily")
+MODEL = BoxInfo.getItem("model")
+
+
+def _ifinfo(sock, addr, ifname):
+	iface = pack('256s', bytes(ifname[:15], 'utf-8'))
+	info = ioctl(sock.fileno(), addr, iface)
+	if addr == 0x8927:
+		return ''.join(['%02x:' % ord(chr(char)) for char in info[18:24]])[:-1].upper()
+	else:
+		return inet_ntoa(info[20:24])
+
+
+def getIfConfig(ifname):
+	ifreq = {"ifname": ifname}
+	infos = {}
+	sock = socket(AF_INET, SOCK_DGRAM)
+	# Offsets defined in /usr/include/linux/sockios.h on linux 2.6.
+	infos["addr"] = 0x8915  # SIOCGIFADDR
+	infos["brdaddr"] = 0x8919  # SIOCGIFBRDADDR
+	infos["hwaddr"] = 0x8927  # SIOCSIFHWADDR
+	infos["netmask"] = 0x891b  # SIOCGIFNETMASK
+	try:
+		for k, v in infos.items():
+			ifreq[k] = _ifinfo(sock, v, ifname)
+	except Exception as ex:
+		print("[About] getIfConfig Ex: %s" % str(ex))
+		pass
+	sock.close()
+	return ifreq
+
+
+def getIfTransferredData(ifname):
+	lines = fileReadLines("/proc/net/dev", source=MODULE_NAME)
+	if lines:
+		for line in lines:
+			if ifname in line:
+				data = line.split("%s:" % ifname)[1].split()
+				rx_bytes, tx_bytes = (data[0], data[8])
+				return rx_bytes, tx_bytes
 
 
 def getVersionString():
-	return getImageVersionString()
+	return str(BoxInfo.getItem("imageversion"))
 
 
 def getImageVersionString():
-	try:
-		if os.path.isfile('/var/lib/opkg/status'):
-			st = os.stat('/var/lib/opkg/status')
-		tm = time.localtime(st.st_mtime)
-		if tm.tm_year >= 2011:
-			return time.strftime("%Y-%m-%d %H:%M:%S", tm)
-	except:
-		pass
-	return _("unavailable")
+	return str(BoxInfo.getItem("imageversion"))
 
 # WW -placeholder for BC purposes, commented out for the moment in the Screen
 
 
 def getFlashDateString():
-	return _("unknown")
+	try:
+		tm = localtime(stat("/boot").st_ctime)
+		if tm.tm_year >= 2011:
+			return strftime(_("%Y-%m-%d"), tm)
+		else:
+			return _("Unknown")
+	except:
+		return _("Unknown")
 
 
 def returndate(date):
-    return "%s-%s-%s" % (date[:4], date[4:6], date[6:8])
+	date = str(date)
+	return "%s-%s-%s" % (date[:4], date[4:6], date[6:8])
+
 
 def getBuildDateString():
-	return returndate(BoxInfo.getItem("compiledate"))
+	version = fileReadLine("/etc/version", source=MODULE_NAME)
+	if version is None:
+		return _("Unknown")
+	return "%s-%s-%s" % (version[:4], version[4:6], version[6:8])
 
 
 def getUpdateDateString():
 	try:
-		from glob import glob
-		build = [x.split("-")[-2:-1][0][-8:] for x in open(glob("/var/lib/opkg/info/openpli-bootlogo.control")[0], "r") if x.startswith("Version:")][0]
+		driver = [x.split("-")[-2] for x in open(glob("/var/lib/opkg/info/*-dvb-modules-*.control")[0], "r") if x.startswith("Version:")][0]
 		if build.isdigit():
 			return returndate(build)
 	except:
@@ -63,20 +119,18 @@ def getEnigmaBranchString():
 
 def getGStreamerVersionString():
 	try:
-		from glob import glob
 		gst = [x.split("Version: ") for x in open(glob("/var/lib/opkg/info/gstreamer[0-9].[0-9].control")[0], "r") if x.startswith("Version:")][0]
 		return "%s" % gst[1].split("+")[0].split("-")[0].replace("\n", "")
 	except:
-		return ""
+		return _("Not Installed")
 
 
 def getffmpegVersionString():
 	try:
-		from glob import glob
 		ffmpeg = [x.split("Version: ") for x in open(glob("/var/lib/opkg/info/ffmpeg.control")[0], "r") if x.startswith("Version:")][0]
-		return "%s" % ffmpeg[1].split("-")[0].replace("\n", "")
+		return "%s" % ffmpeg[1].split("+")[0].replace("\n", "")
 	except:
-		return ""
+		return _("Not Installed")
 
 
 def getKernelVersionString():
@@ -88,13 +142,20 @@ def getHardwareTypeString():
 
 
 def getImageTypeString():
-	if BoxInfo.getItem("imagetype") != "rev":
-		return "%s %s %s" % (BoxInfo.getItem("displaydistro"), BoxInfo.getItem("imagetype").title(), BoxInfo.getItem("imageversion"))
 	return "%s %s" % (BoxInfo.getItem("displaydistro"), BoxInfo.getItem("imageversion").title())
 
 
 def getOEVersionString():
 	return BoxInfo.getItem("oe").title()
+
+
+def getCPUSerial():
+	lines = fileReadLines("/proc/cpuinfo", source=MODULE_NAME)
+	if lines:
+		for line in lines:
+			if line[0:6] == "Serial":
+				return line[10:26]
+	return _("Undefined")
 
 
 def getCPUInfoString():
@@ -111,7 +172,7 @@ def getCPUInfoString():
 			elif line[0] == "processor":
 				cpu_count += 1
 
-		if processor.startswith("ARM") and os.path.isfile("/proc/stb/info/chipset"):
+		if processor.startswith("ARM") and isfile("/proc/stb/info/chipset"):
 			processor = "%s (%s)" % (open("/proc/stb/info/chipset").readline().strip().upper(), processor)
 
 		if not cpu_speed:
@@ -126,20 +187,20 @@ def getCPUInfoString():
 
 		temperature = None
 		freq = _("MHz")
-		if os.path.isfile('/proc/stb/fp/temp_sensor_avs'):
+		if isfile('/proc/stb/fp/temp_sensor_avs'):
 			temperature = open("/proc/stb/fp/temp_sensor_avs").readline().replace('\n', '')
-		elif os.path.isfile('/proc/stb/power/avs'):
+		elif isfile('/proc/stb/power/avs'):
 			temperature = open("/proc/stb/power/avs").readline().replace('\n', '')
-		elif os.path.isfile('/proc/stb/fp/temp_sensor'):
+		elif isfile('/proc/stb/fp/temp_sensor'):
 			temperature = open("/proc/stb/fp/temp_sensor").readline().replace('\n', '')
-		elif os.path.isfile("/sys/devices/virtual/thermal/thermal_zone0/temp"):
+		elif isfile("/sys/devices/virtual/thermal/thermal_zone0/temp"):
 			try:
 				temperature = int(open("/sys/devices/virtual/thermal/thermal_zone0/temp").read().strip()) // 1000
 			except:
 				pass
-		elif os.path.isfile("/proc/hisi/msp/pm_cpu"):
+		elif isfile("/proc/hisi/msp/pm_cpu"):
 			try:
-				temperature = re.search('temperature = (\d+) degree', open("/proc/hisi/msp/pm_cpu").read()).group(1)
+				temperature = search('temperature = (\d+) degree', open("/proc/hisi/msp/pm_cpu").read()).group(1)
 			except:
 				pass
 		if temperature:
@@ -149,79 +210,166 @@ def getCPUInfoString():
 		return _("undefined")
 
 
+def getSystemTemperature():
+	temperature = ""
+	if isfile("/proc/stb/sensors/temp0/value"):
+		temperature = fileReadLine("/proc/stb/sensors/temp0/value", source=MODULE_NAME)
+	elif isfile("/proc/stb/sensors/temp/value"):
+		temperature = fileReadLine("/proc/stb/sensors/temp/value", source=MODULE_NAME)
+	elif isfile("/proc/stb/fp/temp_sensor"):
+		temperature = fileReadLine("/proc/stb/fp/temp_sensor", source=MODULE_NAME)
+	if temperature:
+		return "%s%s C" % (temperature, "\u00B0")
+	return temperature
+
+
+def getChipSetString():
+	if MODEL in ('dm7080', 'dm820'):
+		return "7435"
+	elif MODEL in ('dm520', 'dm525'):
+		return "73625"
+	elif MODEL in ('dm900', 'dm920', 'et13000', 'sf5008'):
+		return "7252S"
+	elif MODEL in ('hd51', 'vs1500', 'h7'):
+		return "7251S"
+	elif MODEL in ('alien5',):
+		return "S905D"
+	else:
+		chipset = fileReadLine("/proc/stb/info/chipset", source=MODULE_NAME)
+		if chipset is None:
+			return _("Undefined")
+		return str(chipset.lower().replace('\n', '').replace('bcm', '').replace('brcm', '').replace('sti', ''))
+
+
+def getCPUBrand():
+	if BoxInfo.getItem("AmlogicFamily"):
+		return _("Amlogic")
+	elif BoxInfo.getItem("HiSilicon"):
+		return _("HiSilicon")
+	elif socfamily.startswith("smp"):
+		return _("Sigma Designs")
+	elif socfamily.startswith("bcm") or BoxInfo.getItem("brand") == "rpi":
+		return _("Broadcom")
+	print("[About] No CPU brand?")
+	return _("Undefined")
+
+
+def getCPUArch():
+	if BoxInfo.getItem("ArchIsARM64"):
+		return _("ARM64")
+	elif BoxInfo.getItem("ArchIsARM"):
+		return _("ARM")
+	return _("Mipsel")
+
+
+def getDVBAPI():
+	if BoxInfo.getItem("OLDE2API"):
+		return _("Old") 
+	else:
+		return _("New")
+
+
 def getDriverInstalledDate():
-	try:
-		from glob import glob
-		try:
-			driver = [x.split("-") for x in open(glob("/var/lib/opkg/info/*-dvb-modules-*.control")[0], "r") if x.startswith("Version:")][0]
-			if len(driver) == 2:
-				driver = driver[0].split('+')
-			return "%s-%s-%s" % (driver[1][:4], driver[1][4:6], driver[1][6:])
-		except:
-			try:
-				driver = [x.split("Version:") for x in open(glob("/var/lib/opkg/info/*-dvb-proxy-*.control")[0], "r") if x.startswith("Version:")][0]
-				return "%s" % driver[1].replace("\n", "")
-			except:
-				driver = [x.split("Version:") for x in open(glob("/var/lib/opkg/info/*-platform-util-*.control")[0], "r") if x.startswith("Version:")][0]
-				return "%s" % driver[1].replace("\n", "")
-	except:
-		return _("unknown")
+
+	def extractDate(value):
+		match = search('[0-9]{8}', value)
+		if match:
+			return match[0]
+		else:
+			return value
+
+	filenames = glob("/var/lib/opkg/info/*dvb-modules*.control")
+	if filenames:
+		lines = fileReadLines(filenames[0], source=MODULE_NAME)
+		if lines:
+			for line in lines:
+				if line[0:8] == "Version:":
+					return extractDate(line)
+	filenames = glob("/var/lib/opkg/info/*dvb-proxy*.control")
+	if filenames:
+		lines = fileReadLines(filenames[0], source=MODULE_NAME)
+		if lines:
+			for line in lines:
+				if line[0:8] == "Version:":
+					return extractDate(line)
+	filenames = glob("/var/lib/opkg/info/*platform-util*.control")
+	if filenames:
+		lines = fileReadLines(filenames[0], source=MODULE_NAME)
+		if lines:
+			for line in lines:
+				if line[0:8] == "Version:":
+					return extractDate(line)
+	return _("Unknown")
 
 
 def getPythonVersionString():
 	return "%s.%s.%s" % (version_info.major, version_info.minor, version_info.micro)
 
 
+def getOpenSSLVersion():
+	process = Popen(("/usr/bin/openssl", "version"), stdout=PIPE, stderr=PIPE, universal_newlines=True)
+	stdout, stderr = process.communicate()
+	if process.returncode == 0:
+		data = stdout.strip().split()
+		if len(data) > 1 and data[0] == "OpenSSL":
+			return data[1]
+	print("[About] Get OpenSSL version failed.")
+	return _("Unknown")
+
+
 def GetIPsFromNetworkInterfaces():
-	import socket
-	import fcntl
-	import struct
-	import array
-	is_64bits = maxsize > 2**32
-	struct_size = 40 if is_64bits else 32
-	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-	max_possible = 8 # initial value
+	structSize = 40 if maxsize > 2 ** 32 else 32
+	sock = socket(AF_INET, SOCK_DGRAM)
+	maxPossible = 8  # Initial value.
 	while True:
-		_bytes = max_possible * struct_size
-		names = array.array('B')
-		for i in range(0, _bytes):
+		_bytes = maxPossible * structSize
+		names = array("B")
+		for index in range(_bytes):
 			names.append(0)
-		outbytes = struct.unpack('iL', fcntl.ioctl(
-			s.fileno(),
-			0x8912,  # SIOCGIFCONF
-			struct.pack('iL', _bytes, names.buffer_info()[0])
-		))[0]
+		outbytes = unpack("iL", ioctl(sock.fileno(), 0x8912, pack("iL", _bytes, names.buffer_info()[0])))[0]  # 0x8912 = SIOCGIFCONF
 		if outbytes == _bytes:
-			max_possible *= 2
+			maxPossible *= 2
 		else:
 			break
-	namestr = names.tobytes()
 	ifaces = []
-	for i in range(0, outbytes, struct_size):
-		iface_name = bytes.decode(namestr[i:i + 16]).split('\0', 1)[0]
-		if iface_name != 'lo':
-			iface_addr = socket.inet_ntoa(namestr[i + 20:i + 24])
-			ifaces.append((iface_name, iface_addr))
+	for index in range(0, outbytes, structSize):
+		ifaceName = names.tobytes()[index:index + 16].decode().split("\0", 1)[0]
+		if ifaceName != "lo":
+			ifaces.append((ifaceName, inet_ntoa(names[index + 20:index + 24])))
 	return ifaces
 
 
 def getBoxUptime():
+	upTime = fileReadLine("/proc/uptime", source=MODULE_NAME)
+	if upTime is None:
+		return "-"
+	secs = int(upTime.split(".")[0])
+	times = []
+	if secs > 86400:
+		days = secs // 86400
+		secs = secs % 86400
+		times.append(ngettext("%d Day", "%d Days", days) % days)
+	h = secs // 3600
+	m = (secs % 3600) // 60
+	times.append(ngettext("%d Hour", "%d Hours", h) % h)
+	times.append(ngettext("%d Minute", "%d Minutes", m) % m)
+	return " ".join(times)
+
+
+def getGlibcVersion():
 	try:
-		time = ''
-		f = open("/proc/uptime", "r")
-		secs = int(f.readline().split('.')[0])
-		f.close()
-		if secs > 86400:
-			days = secs / 86400
-			secs = secs % 86400
-			time = ngettext("%d day", "%d days", days) % days + " "
-		h = secs / 3600
-		m = (secs % 3600) / 60
-		time += ngettext("%d hour", "%d hours", h) % h + " "
-		time += ngettext("%d minute", "%d minutes", m) % m
-		return "%s" % time
+		return libc_ver()[1]
 	except:
-		return '-'
+		print("[About] Get glibc version failed.")
+	return _("Unknown")
+
+
+def getGccVersion():
+	try:
+		return pyversion.split("[GCC ")[1].replace("]", "")
+	except:
+		print("[About] Get gcc version failed.")
+	return _("Unknown")
 
 
 # For modules that do "from About import about"

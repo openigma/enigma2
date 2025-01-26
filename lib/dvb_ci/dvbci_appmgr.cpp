@@ -47,8 +47,7 @@ int eDVBCIApplicationManagerSession::receivedAPDU(const unsigned char *tag,const
 			str[dl] = '\0';
 
 			m_app_name = str;
-			if (m_app_name.size() > 0 && !isUTF8(m_app_name))
-			{
+			if(m_app_name.size() > 0 && !isUTF8(m_app_name)) {
 				eDebug("[CI%d AM]   menu string is not UTF8 hex output:%s\nstr output:%s\n",slot->getSlotID(),string_to_hex(m_app_name).c_str(),m_app_name.c_str());
 				m_app_name = convertLatin1UTF8(m_app_name);
 				eDebug("[CI%d AM]   fixed menu string: %s", slot->getSlotID(), m_app_name.c_str());

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from enigma import iPlayableService, iRdsDecoder
 from Screens.Screen import Screen
 from Components.ActionMap import NumberActionMap
@@ -24,7 +25,6 @@ class RdsInfoDisplaySummary(Screen):
 
 
 class RdsInfoDisplay(Screen):
-	ALLOW_SUSPEND = True
 
 	def __init__(self, session):
 		Screen.__init__(self, session)

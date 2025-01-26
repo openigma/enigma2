@@ -1,4 +1,5 @@
-from skin import applySkinFactor, parseColor, parseFont, parseScale
+# -*- coding: utf-8 -*-
+from skin import parseColor, parseFont
 from Components.config import config, ConfigClock, ConfigInteger, ConfigSubsection, ConfigYesNo, ConfigSelection, ConfigSelectionNumber
 from Components.Pixmap import Pixmap
 from Components.Button import Button
@@ -6,7 +7,7 @@ from Components.ActionMap import HelpableActionMap
 from Components.GUIComponent import GUIComponent
 from Components.EpgList import Rect
 from Components.Sources.Event import Event
-from Components.MultiContent import MultiContentEntryText, MultiContentEntryPixmapAlphaBlend, MultiContentEntryPixmap
+from Components.MultiContent import MultiContentEntryText, MultiContentEntryPixmapAlphaBlend
 from Components.TimerList import TimerList
 from Components.Renderer.Picon import getPiconName
 from Components.Sources.ServiceEvent import ServiceEvent
@@ -14,7 +15,6 @@ from Components.Sources.StaticText import StaticText
 from Components.UsageConfig import preferredTimerPath
 import Screens.InfoBar
 from Screens.Screen import Screen
-from Screens.HelpMenu import HelpableScreen
 from Screens.EventView import EventViewEPGSelect
 from Screens.InputBox import PinInput
 from Screens.TimeDateInput import TimeDateInput
@@ -150,9 +150,9 @@ class EPGList(GUIComponent):
 		self.backColorRec = 0x805050
 		self.foreColorDis = 0xffffff
 		self.backColorDis = 0x777700
-		self.serviceFont = gFont("Regular", applySkinFactor(20))
+		self.serviceFont = gFont("Regular", 20)
 		self.entryFontName = "Regular"
-		self.entryFontSize = applySkinFactor(18)
+		self.entryFontSize = 18
 
 		self.listHeight = None
 		self.listWidth = None
@@ -164,7 +164,7 @@ class EPGList(GUIComponent):
 		self.eventBorderVerWidth = 1 # for png backgrounds only
 		self.eventBorderHorWidth = 1 # for png backgrounds only
 		self.eventNamePadding = 0
-		self.recIconSize = applySkinFactor(21)
+		self.recIconSize = 21
 		self.iconXPadding = 1
 		self.iconYPadding = 1
 		self.borderTopPix = None
@@ -204,16 +204,16 @@ class EPGList(GUIComponent):
 			self.borderColor = parseColor(value).argb()
 
 		def EventBorderWidth(value): # for solid backgrounds only (we are limited to the same horizontal and vertical border width)
-			self.eventBorderWidth = parseScale(value)
+			self.eventBorderWidth = int(value)
 
 		def EventBorderHorWidth(value): # for png backgrounds only
-			self.eventBorderHorWidth = parseScale(value)
+			self.eventBorderHorWidth = int(value)
 
 		def EventBorderVerWidth(value): # for png backgrounds only
-			self.eventBorderVerWidth = parseScale(value)
+			self.eventBorderVerWidth = int(value)
 
 		def EventNamePadding(value):
-			self.eventNamePadding = parseScale(value)
+			self.eventNamePadding = int(value)
 
 		def ServiceFont(value):
 			self.serviceFont = parseFont(value, screen.scale)
@@ -246,25 +246,25 @@ class EPGList(GUIComponent):
 			self.borderColorService = parseColor(value).argb()
 
 		def ServiceBorderWidth(value): # for solid backgrounds only (we are limited to the same horizontal and vertical border width)
-			self.serviceBorderWidth = parseScale(value)
+			self.serviceBorderWidth = int(value)
 
 		def ServiceBorderHorWidth(value): # for png backgrounds only
-			self.serviceBorderHorWidth = parseScale(value)
+			self.serviceBorderHorWidth = int(value)
 
 		def ServiceBorderVerWidth(value): # for png backgrounds only
-			self.serviceBorderVerWidth = parseScale(value)
+			self.serviceBorderVerWidth = int(value)
 
 		def ServiceNamePadding(value):
-			self.serviceNamePadding = parseScale(value)
+			self.serviceNamePadding = int(value)
 
 		def RecIconSize(value):
-			self.recIconSize = parseScale(value)
+			self.recIconSize = int(value)
 
 		def IconXPadding(value):
-			self.iconXPadding = parseScale(value)
+			self.iconXPadding = int(value)
 
 		def IconYPadding(value):
-			self.iconYPadding = parseScale(value)
+			self.iconYPadding = int(value)
 		for (attrib, value) in list(self.skinAttributes):
 			try:
 				locals().get(attrib)(value)
@@ -542,9 +542,9 @@ class EPGList(GUIComponent):
 						size=(self.eventBorderWidth, height),
 						png=self.borderRightPix,
 						flags=BT_SCALE))
-		
+
 		if bgpng is not None:    # bacground for service rect
-			res.append(MultiContentEntryPixmap(
+			res.append(MultiContentEntryPixmapAlphaBlend(
 					pos=(r1.x + self.serviceBorderVerWidth, r1.y + self.serviceBorderHorWidth),
 					size=(r1.w - 2 * self.serviceBorderVerWidth, r1.h - 2 * self.serviceBorderHorWidth),
 					png=bgpng,
@@ -656,7 +656,7 @@ class EPGList(GUIComponent):
 					bgpng = self.othEvPix
 
 				if bgpng is not None:
-					res.append(MultiContentEntryPixmap(
+					res.append(MultiContentEntryPixmapAlphaBlend(
 						pos=(left + xpos, top + self.eventBorderHorWidth),
 						size=(ewidth, height - self.eventBorderHorWidth),
 						png=bgpng,
@@ -684,7 +684,7 @@ class EPGList(GUIComponent):
 						color=foreColor,
 						color_sel=foreColorSelected,
 						backcolor=backColor if bgpng is None else None, backcolor_sel=backColorSel if bgpng is None else None))
-					
+
 				# Event box borders.
 				if self.graphics_mode:
 					if self.borderTopPix is not None:
@@ -711,7 +711,7 @@ class EPGList(GUIComponent):
 								size=(self.eventBorderWidth, height),
 								png=self.borderRightPix,
 								flags=BT_SCALE))
-						
+
 				# recording icons
 				clockIconXPos = left + xpos + ewidth
 				if config.misc.graph_mepg.show_record_clocks.value and rec is not None:
@@ -969,7 +969,7 @@ class TimelineText(GUIComponent):
 			timeline_now.visible = False
 
 
-class GraphMultiEPG(Screen, HelpableScreen):
+class GraphMultiEPG(Screen):
 	EMPTY = 0
 	ADD_TIMER = 1
 	REMOVE_TIMER = 2
@@ -979,7 +979,7 @@ class GraphMultiEPG(Screen, HelpableScreen):
 	ZAP = 1
 
 	def __init__(self, session, services, zapFunc=None, bouquetChangeCB=None, bouquetname="", selectBouquet=None, epg_bouquet=None):
-		Screen.__init__(self, session)
+		Screen.__init__(self, session, enableHelp=True)
 		self.bouquetChangeCB = bouquetChangeCB
 		self.selectBouquet = selectBouquet
 		self.epg_bouquet = epg_bouquet
@@ -1023,7 +1023,6 @@ class GraphMultiEPG(Screen, HelpableScreen):
 					overjump_empty=config.misc.graph_mepg.overjump.value,
 					epg_bouquet=epg_bouquet)
 
-		HelpableScreen.__init__(self)
 		self["okactions"] = HelpableActionMap(self, ["OkCancelActions"],
 			{
 				"cancel": (self.closeScreen, _("Exit EPG")),

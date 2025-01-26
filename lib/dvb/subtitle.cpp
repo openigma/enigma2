@@ -10,7 +10,7 @@
 #include <lib/base/smartptr.h>
 #include <lib/base/eerror.h>
 #include <lib/gdi/gpixmap.h>
-#include <lib/base/nconfig.h>
+#include <lib/base/esettings.h>
 
 void bitstream_init(bitstream *bit, const void *buffer, int size)
 {
@@ -51,7 +51,7 @@ static int extract_pts(pts_t &pts, uint8_t *pkt)
 
 void eDVBSubtitleParser::subtitle_process_line(subtitle_region *region, subtitle_region_object *object, int line, uint8_t *data, int len)
 {
-	bool subcentered = eConfigManager::getConfigBoolValue("config.subtitles.dvb_subtitles_centered");
+	bool subcentered = eSubtitleSettings::dvb_subtitles_centered;
 	int x = subcentered ? (region->width - len) /2 : object->object_horizontal_position;
 	int y = object->object_vertical_position + line;
 	if (x + len > region->width)
@@ -1042,67 +1042,58 @@ void eDVBSubtitleParser::subtitle_redraw(int page_id)
 					break;
 			}
 
-			int bcktrans = eConfigManager::getConfigIntValue("config.subtitles.dvb_subtitles_backtrans");
-			int color = eConfigManager::getConfigIntValue("config.subtitles.dvb_subtitles_color");
+			int backgroundTransparency = eSubtitleSettings::dvb_subtitles_backtrans;
+			int subtitleColor = eSubtitleSettings::dvb_subtitles_color;
 
-			for (int i=0; i<clut_size; ++i)
+			bool isYellow = subtitleColor == 1;
+			bool isGreen = subtitleColor == 2;
+			bool isCyan = subtitleColor == 4;
+			if (entries)
 			{
-				if (entries && entries[i].valid)
+				for (int i = 0; i < clut_size; ++i)
 				{
-					int y = entries[i].Y,
-						cr = entries[i].Cr,
-						cb = entries[i].Cb;
-					if (y > 0)
+					if (entries[i].valid)
 					{
-						y -= 16;
-						cr -= 128;
-						cb -= 128;
-						if (color == 1) // yellow
+						int y = entries[i].Y,
+							cr = entries[i].Cr,
+							cb = entries[i].Cb;
+						if (y > 0)
 						{
-							palette[i].r = MAX(MIN(((298 * y            + 460 * cr) / 256), 255), 0);
-							palette[i].g = MAX(MIN(((298 * y -  55 * cb - 137 * cr) / 256), 255), 0);
-							palette[i].b = 0;
-						}
-						else if (color == 2) // green
-						{
-							palette[i].r = 0;
-							palette[i].g = MAX(MIN(((298 * y) / 256), 255), 0);
-							palette[i].b = 0;
-						}
-						else if (color == 3) // magenta
-						{
-							palette[i].r = MAX(MIN(((298 * y + 460 * cr) / 256), 255), 0);
-							palette[i].g = 0;
-							palette[i].b = MAX(MIN(((298 * y + 543 * cb) / 256), 255), 0);
-						}
-						else if (color == 4) // cyan
-						{
-							palette[i].r = 0;
-							palette[i].g = MAX(MIN(((298 * y + 543 * cb) / 256), 255), 0);
-							palette[i].b = MAX(MIN(((298 * y + 543 * cb) / 256), 255), 0);
-						}
-						else // original
-						{
-							palette[i].r = MAX(MIN(((298 * y            + 460 * cr) / 256), 255), 0);
-							palette[i].g = MAX(MIN(((298 * y -  55 * cb - 137 * cr) / 256), 255), 0);
-							palette[i].b = MAX(MIN(((298 * y + 543 * cb) / 256), 255), 0);
-						}
-						if (bcktrans >= 0)
-						{
-							if (palette[i].r || palette[i].g || palette[i].b)
+							y -= 16;
+							cr -= 128;
+							cb -= 128;
+							palette[i].r = (isGreen || isCyan) ? 0 : std::max(std::min(((298 * y + 460 * cr) / 256), 255), 0);
+							palette[i].b = (isYellow || isGreen) ? 0 : std::max(std::min(((298 * y + 543 * cb) / 256), 255), 0);
+
+							if (isGreen)
+							{
+								palette[i].g = std::max(std::min(((298 * y) / 256), 255), 0);
+							}
+							else if (subtitleColor == 3) // magenta
+							{
+								palette[i].g = 0;
+							}
+							else if (isCyan)
+							{
+								palette[i].g = std::max(std::min(((298 * y + 543 * cb) / 256), 255), 0);
+							}
+							else // yellow , original
+							{
+								palette[i].g = std::max(std::min(((298 * y - 55 * cb - 137 * cr) / 256), 255), 0);
+							}
+
+							if (backgroundTransparency != -1 && (palette[i].r || palette[i].g || palette[i].b))
 								palette[i].a = (entries[i].T) & 0xFF;
 							else
-								palette[i].a = bcktrans;
+								palette[i].a = backgroundTransparency;
 						}
 						else
-							palette[i].a = (entries[i].T) & 0xFF;
-					}
-					else
-					{
-						palette[i].r = 0;
-						palette[i].g = 0;
-						palette[i].b = 0;
-						palette[i].a = 0xFF;
+						{
+							palette[i].r = 0;
+							palette[i].g = 0;
+							palette[i].b = 0;
+							palette[i].a = 0xFF;
+						}
 					}
 				}
 			}

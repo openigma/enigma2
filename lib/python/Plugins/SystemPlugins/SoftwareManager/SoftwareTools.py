@@ -1,4 +1,4 @@
-# -*- coding: iso-8859-1 -*-
+# -*- coding: utf-8 -*-
 from Components.Console import Console
 from Components.About import about
 from Components.PackageInfo import PackageInfoHandler
@@ -134,7 +134,8 @@ class SoftwareTools(PackageInfoHandler):
 				else:
 					if self.UpdateConsole:
 						if not self.UpdateConsole.appContainers:
-								callback(True)
+								#callback(True)
+								pass
 		else:
 			self.list_updating = False
 			if self.UpdateConsole:

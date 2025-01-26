@@ -6,6 +6,7 @@
 #include <lib/service/iservice.h>
 #include <lib/python/python.h>
 #include <set>
+#include <lib/nav/core.h>
 
 class eListboxServiceContent: public virtual iListboxContent
 {
@@ -21,6 +22,7 @@ public:
 	void setIgnoreService( const eServiceReference &service );
 	void setRoot(const eServiceReference &ref, bool justSet=false);
 	void getCurrent(eServiceReference &ref);
+
 	void getPrev(eServiceReference &ref);
 	void getNext(eServiceReference &ref);
 	PyObject *getList();
@@ -28,9 +30,6 @@ public:
 	int getNextBeginningWithChar(char c);
 	int getPrevMarkerPos();
 	int getNextMarkerPos();
-	int getCurrentSelectionIndex() { return cursorResolve(m_cursor_number); }
-	eSize getItemSize() { return m_itemsize; }
-	int getListSize() { return m_size_visible; }
 
 		/* support for marked services */
 	void initMarked();
@@ -47,8 +46,7 @@ public:
 
 	enum {
 		visModeSimple,
-		visModeComplex,
-		visSkinDefined
+		visModeComplex
 	};
 
 	void setVisualMode(int mode);
@@ -58,12 +56,14 @@ public:
 		celServiceNumber,
 		celMarkerPixmap,
 		celFolderPixmap,
+		celPiconPixmap,
+		celRecordServicePixmap,
 		celServiceEventProgressbar,
 		celServiceName,
+		celServiceTime,
 		celServiceInfo, // "now" event
-		celServiceNextInfo, // "next" event
+		celNextEventInfo,
 		celServiceTypePixmap,
-		celServiceInfoRemainingTime,
 		celElements
 	};
 
@@ -75,14 +75,11 @@ public:
 		picServiceGroup,
 		picFolder,
 		picMarker,
+		picPicon,
+		picRecordService,
 		picServiceEventProgressbar,
 		picCrypto,
 		picRecord,
-		pic4K,
-		picHD,
-		picSD,
-		picBackup,
-		picCatchup,
 		picElements
 	};
 
@@ -97,30 +94,23 @@ public:
 	int getItemHeight() { return m_itemheight; }
 	void setItemHeight(int height);
 	void setHideNumberMarker(bool doHide) { m_hide_number_marker = doHide; }
+	void setShowTwoLines(bool twoLines) { m_show_two_lines = twoLines; }
+	void setProgressViewMode(int mode) { m_progress_view_mode = mode; }
+	void setProgressTextWidth(int value) { m_progress_text_width = value; }
+	void setServicePiconDownsize(int value) { m_service_picon_downsize = value; }
+	void setServicePiconRatio(int value) { m_service_picon_ratio = value; }
 	void setServiceTypeIconMode(int mode) { m_servicetype_icon_mode = mode; }
 	void setCryptoIconMode(int mode) { m_crypto_icon_mode = mode; }
 	void setRecordIndicatorMode(int mode) { m_record_indicator_mode = mode; }
 	void setColumnWidth(int value) { m_column_width = value; }
-	void setProgressbarHeight(int value) {	m_progressbar_height = value; }
+	void setChannelNumbersVisible(bool visible) { m_chanel_number_visible = visible; }
+	void setProgressbarHeight(int value) { m_progressbar_height = value; }
 	void setProgressbarBorderWidth(int value) { m_progressbar_border_width = value; }
 	void setNonplayableMargins(int value) { m_nonplayable_margins = value; }
 	void setItemsDistances(int value) { m_items_distances = value; }
-	void setSidesMargin(int value) { m_sides_margin = value; }
-	void setMarkerAsLine(int value) { m_marker_as_line = value; }
-	void setChannelNumbersVisible(bool visible) { m_chanel_number_visible = visible; }
-	void setAlternativeNumberingMode(bool b) { m_alternative_numbering = b; }
-	void setProgressBarMode(std::string s) { m_progress_mode = s; }
-	void setAlternativeRecordMatching(bool b) { m_alternative_record_match = b; }
-	void setHasNextEvent(bool b) { m_has_next_event = b; }
 
-	void setNextTitle(const std::string &string) { m_next_title = string; }
-	void setTextTime(const std::string &string) { m_text_time = string; }
-	void setTextSeparator(const std::string &string) { m_separator = string; }
-	void setMarkerTextAlignment(const std::string &string) { m_marker_alignment = string; } // currently supports left and center
-	void setMarkerLineColor(const gRGB &col) { 
-		m_markerline_color = col;
-		m_markerline_color_set = 1;
-	}
+	void setProgressUnit(const std::string &string) { m_progress_unit = string; }
+	void setNumberingMode(int numberingMode) { m_numbering_mode = numberingMode; }
 
 	static void setGetPiconNameFunc(SWIG_PYOBJECT(ePyObject) func);
 
@@ -136,10 +126,6 @@ public:
 		eventborderForegroundSelected,
 		eventForegroundFallback,
 		eventForegroundSelectedFallback,
-		eventNextForeground,
-		eventNextForegroundSelected,
-		eventNextForegroundFallback,
-		eventNextForegroundSelectedFallback,
 		serviceItemFallback,
 		serviceSelectedFallback,
 		serviceEventProgressbarColor,
@@ -147,15 +133,17 @@ public:
 		serviceEventProgressbarBorderColor,
 		serviceEventProgressbarBorderColorSelected,
 		serviceRecorded,
-		eventRemainingForeground,
-		eventRemainingForegroundSelected,
-		eventRemainingForegroundFallback,
-		eventRemainingForegroundSelectedFallback,
+		servicePseudoRecorded,
+		serviceStreamed,
+		serviceRecordingColor,
+		serviceAdvertismentColor,
+		serviceDescriptionColor,
+		serviceDescriptionColorSelected,
 		colorElements
 	};
 
 	void setColor(int color, gRGB &col);
-	bool checkServiceIsRecorded(eServiceReference ref);
+	bool checkServiceIsRecorded(eServiceReference ref,pNavigation::RecordType type=pNavigation::isAnyRecording);
 protected:
 	void cursorHome();
 	void cursorEnd();
@@ -168,6 +156,8 @@ protected:
 
 	void cursorSave();
 	void cursorRestore();
+	void cursorSaveLine(int n);
+	int cursorRestoreLine();
 	int size();
 
 	// void setOutputDevice ? (for allocating colors, ...) .. requires some work, though
@@ -189,8 +179,8 @@ private:
 	list m_list;
 	list::iterator m_cursor, m_saved_cursor;
 
-	int m_cursor_number, m_saved_cursor_number;
-	int m_size, m_size_visible;
+	int m_cursor_number, m_saved_cursor_number, m_saved_cursor_line;
+	int m_size;
 
 	eSize m_itemsize;
 	ePtr<iServiceHandler> m_service_center;
@@ -211,7 +201,11 @@ private:
 	int m_itemheight;
 	bool m_hide_number_marker;
 	bool m_chanel_number_visible;
-	bool m_alternative_numbering;
+	bool m_show_two_lines;
+	int m_progress_view_mode;
+	int m_progress_text_width;
+	int m_service_picon_downsize;
+	int m_service_picon_ratio;
 	int m_servicetype_icon_mode;
 	int m_crypto_icon_mode;
 	int m_record_indicator_mode;
@@ -220,18 +214,9 @@ private:
 	int m_progressbar_border_width;
 	int m_nonplayable_margins;
 	int m_items_distances;
-	int m_sides_margin;
-	int m_marker_as_line;
-	gRGB m_markerline_color;
-	int m_markerline_color_set;
-	bool m_alternative_record_match;
-	bool m_has_next_event;
 
-	std::string m_text_time;
-	std::string m_next_title;
-	std::string m_separator;
-	std::string m_marker_alignment;
-	std::string m_progress_mode;
+	std::string m_progress_unit;
+	int m_numbering_mode;
 };
 
 #endif

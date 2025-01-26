@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from enigma import iPlayableService, eDVBResourceManager, eDVBSatelliteEquipmentControl
 from Components.Sources.Source import Source
 from Components.PerServiceDisplay import PerServiceBase
@@ -41,15 +42,20 @@ class FrontendInfo(Source, PerServiceBase):
 
 	def updateTunerMask(self, mask):
 		self.tuner_mask = mask
+		if mask:
+			self.updateFrontendData()
 		self.changed((self.CHANGED_ALL, ))
 
 	def getFrontendData(self):
 		if self.frontend_source:
-			frontend = self.frontend_source()
-			dict = {}
-			if frontend:
-				frontend.getFrontendData(dict)
-			return dict
+			feinfo = {}
+			try:
+				frontend = self.frontend_source()
+				if frontend:
+					frontend.getFrontendData(feinfo)
+			except AttributeError:
+				pass
+			return feinfo
 		elif self.service_source:
 			service = self.navcore and self.service_source()
 			feinfo = service and service.frontendInfo()

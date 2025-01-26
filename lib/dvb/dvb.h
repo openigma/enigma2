@@ -159,12 +159,17 @@ class eDVBResourceManager: public iObject, public sigc::trackable
 	DECLARE_REF(eDVBResourceManager);
 	int avail, busy;
 
+	enum { DM800, DM500HD, DM800SE, DM8000, DM7020HD, DM7080, DM820, DM520, DM525, DM900, DM920, DREAMONE, DREAMTWO, DREAMSEVEN, DM500HDV2, DM800SEV2};
+
+	int m_boxtype;
+
 	eSmartPtrList<iDVBAdapter> m_adapter;
 	eSmartPtrList<eDVBRegisteredDemux> m_demux;
 	eSmartPtrList<eDVBRegisteredFrontend> m_frontend, m_simulate_frontend;
 	void addAdapter(iDVBAdapter *adapter, bool front = false);
 	void setUsbTuner();
 
+public:
 	struct active_channel
 	{
 		eDVBChannelID m_channel_id;
@@ -173,7 +178,9 @@ class eDVBResourceManager: public iObject, public sigc::trackable
 
 		active_channel(const eDVBChannelID &chid, eDVBChannel *ch) : m_channel_id(chid), m_channel(ch) { }
 	};
+	void feStateChanged();
 
+private:
 	std::list<active_channel> m_active_channels, m_active_simulate_channels;
 
 	ePtr<iDVBChannelList> m_list;
@@ -191,7 +198,6 @@ class eDVBResourceManager: public iObject, public sigc::trackable
 	sigc::connection m_cached_channel_state_changed_conn;
 	ePtr<eTimer> m_releaseCachedChannelTimer;
 	void DVBChannelStateChanged(iDVBChannel*);
-	void feStateChanged();
 #ifndef SWIG
 public:
 #endif
@@ -201,6 +207,7 @@ public:
 
 	RESULT setChannelList(iDVBChannelList *list);
 	RESULT getChannelList(ePtr<iDVBChannelList> &list);
+	RESULT getActiveChannels(std::list<active_channel> &list);
 
 	enum {
 			/* errNoFrontend = -1 replaced by more spcific messages */
@@ -213,7 +220,7 @@ public:
 	};
 
 	RESULT connectChannelAdded(const sigc::slot<void(eDVBChannel*)> &channelAdded, ePtr<eConnection> &connection);
-	int canAllocateChannel(const eDVBChannelID &channelid, const eDVBChannelID &ignore, const eDVBChannelID& ignoresr, int &system, bool simulate=false);
+	int canAllocateChannel(const eDVBChannelID &channelid, const eDVBChannelID &ignore, int &system, bool simulate=false);
 
 		/* allocate channel... */
 	RESULT allocateChannel(const eDVBChannelID &channelid, eUsePtr<iDVBChannel> &channel, bool simulate=false);
@@ -345,6 +352,7 @@ private:
 	ePtr<iDVBDemux> m_tsid_onid_demux;
 	ePtr<eTable<ServiceDescriptionSection> > m_SDT;
 	void SDTready(int err);
+	static int m_debug;
 };
 #endif // SWIG
 

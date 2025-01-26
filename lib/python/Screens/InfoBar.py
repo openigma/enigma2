@@ -1,5 +1,7 @@
-from Tools.Profile import profile
-from enigma import eServiceReference
+# -*- coding: utf-8 -*-
+from enigma import eServiceReference, eProfileWrite
+from os.path import splitext
+from glob import glob
 import os
 
 # workaround for required config entry dependencies.
@@ -10,43 +12,42 @@ from Screens.MessageBox import MessageBox
 from Components.Label import Label
 from Components.Pixmap import MultiPixmap
 
-profile("LOAD:enigma")
+eProfileWrite("LOAD:enigma")
 import enigma
 
-profile("LOAD:InfoBarGenerics")
+eProfileWrite("LOAD:InfoBarGenerics")
 from Screens.InfoBarGenerics import InfoBarShowHide, \
-	InfoBarNumberZap, InfoBarChannelSelection, InfoBarMenu, InfoBarRdsDecoder, \
-	InfoBarEPG, InfoBarSeek, InfoBarInstantRecord, InfoBarRedButton, InfoBarTimerButton, InfoBarVmodeButton, \
+	InfoBarNumberZap, InfoBarChannelSelection, InfoBarMenu, InfoBarRdsDecoder, InfoBarResolutionSelection, InfoBarAspectSelection, \
+	InfoBarEPG, InfoBarSeek, InfoBarInstantRecord, InfoBarRedButton, InfoBarTimerButton, InfoBarVmodeButton, InfoBarHandleBsod, \
 	InfoBarAudioSelection, InfoBarAdditionalInfo, InfoBarNotifications, InfoBarDish, InfoBarUnhandledKey, \
 	InfoBarSubserviceSelection, InfoBarShowMovies, InfoBarTimeshift,  \
 	InfoBarServiceNotifications, InfoBarPVRState, InfoBarCueSheetSupport, InfoBarBuffer, \
 	InfoBarSummarySupport, InfoBarMoviePlayerSummarySupport, InfoBarTimeshiftState, InfoBarTeletextPlugin, InfoBarExtensions, \
 	InfoBarSubtitleSupport, InfoBarPiP, InfoBarPlugins, InfoBarServiceErrorPopupSupport, InfoBarJobman, InfoBarPowersaver, \
-	InfoBarHDMI, resumePointsInstance
+	InfoBarHDMI, InfoBarHdmi2, resumePointsInstance
 from Screens.Hotkey import InfoBarHotkey
 
-profile("LOAD:InitBar_Components")
+eProfileWrite("LOAD:InitBar_Components")
 from Components.ActionMap import HelpableActionMap
 from Components.config import config
 from Components.ServiceEventTracker import ServiceEventTracker, InfoBarBase
 
-profile("LOAD:HelpableScreen")
-from Screens.HelpMenu import HelpableScreen
+eProfileWrite("LOAD:InfoBar_Class")
+
 
 class InfoBar(InfoBarBase, InfoBarShowHide,
-	InfoBarNumberZap, InfoBarChannelSelection, InfoBarMenu, InfoBarEPG, InfoBarRdsDecoder,
+	InfoBarNumberZap, InfoBarChannelSelection, InfoBarMenu, InfoBarEPG, InfoBarRdsDecoder, InfoBarResolutionSelection, InfoBarAspectSelection,
 	InfoBarInstantRecord, InfoBarAudioSelection, InfoBarRedButton, InfoBarTimerButton, InfoBarVmodeButton,
-	HelpableScreen, InfoBarAdditionalInfo, InfoBarNotifications, InfoBarDish, InfoBarUnhandledKey,
+	InfoBarAdditionalInfo, InfoBarNotifications, InfoBarDish, InfoBarUnhandledKey,
 	InfoBarSubserviceSelection, InfoBarTimeshift, InfoBarSeek, InfoBarCueSheetSupport, InfoBarBuffer,
 	InfoBarSummarySupport, InfoBarTimeshiftState, InfoBarTeletextPlugin, InfoBarExtensions,
-	InfoBarPiP, InfoBarPlugins, InfoBarSubtitleSupport, InfoBarServiceErrorPopupSupport, InfoBarJobman, InfoBarPowersaver,
-	InfoBarHDMI, InfoBarHotkey, Screen):
+	InfoBarPiP, InfoBarPlugins, InfoBarSubtitleSupport, InfoBarServiceErrorPopupSupport, InfoBarPowersaver,
+	InfoBarHDMI, InfoBarHdmi2, InfoBarHotkey, InfoBarJobman, InfoBarHandleBsod, Screen):
 
-	ALLOW_SUSPEND = True
 	instance = None
 
 	def __init__(self, session):
-		Screen.__init__(self, session)
+		Screen.__init__(self, session, enableHelp=True)
 		self["actions"] = HelpableActionMap(self, ["InfobarActions"],
 			{
 				"showMovies": (self.showMovies, _("Play recorded movies...")),
@@ -55,17 +56,21 @@ class InfoBar(InfoBarBase, InfoBarShowHide,
 				"toggleTvRadio": (self.toggleTvRadio, _("Toggle the tv and the radio player...")),
 			}, prio=2)
 
+		self["InstantExtensionsActions"] = HelpableActionMap(self, ["InfobarExtensions"],
+			{
+				"extensions": (self.showExtensionSelection, _("Show extensions...")),
+			}, 1) # lower priority
+
 		self.radioTV = 0
 		self.allowPiP = True
 
-		for x in HelpableScreen, \
-				InfoBarBase, InfoBarShowHide, \
-				InfoBarNumberZap, InfoBarChannelSelection, InfoBarMenu, InfoBarEPG, InfoBarRdsDecoder, \
+		for x in InfoBarBase, InfoBarShowHide, \
+				InfoBarNumberZap, InfoBarChannelSelection, InfoBarMenu, InfoBarEPG, InfoBarRdsDecoder, InfoBarResolutionSelection, InfoBarAspectSelection, \
 				InfoBarInstantRecord, InfoBarAudioSelection, InfoBarRedButton, InfoBarTimerButton, InfoBarUnhandledKey, InfoBarVmodeButton,\
 				InfoBarAdditionalInfo, InfoBarNotifications, InfoBarDish, InfoBarSubserviceSelection, InfoBarBuffer, \
 				InfoBarTimeshift, InfoBarSeek, InfoBarCueSheetSupport, InfoBarSummarySupport, InfoBarTimeshiftState, \
-				InfoBarTeletextPlugin, InfoBarExtensions, InfoBarPiP, InfoBarSubtitleSupport, InfoBarJobman, InfoBarPowersaver, \
-				InfoBarPlugins, InfoBarServiceErrorPopupSupport, InfoBarHotkey:
+				InfoBarTeletextPlugin, InfoBarExtensions, InfoBarPiP, InfoBarSubtitleSupport, InfoBarHandleBsod, InfoBarPowersaver, \
+				InfoBarHdmi2, InfoBarPlugins, InfoBarServiceErrorPopupSupport, InfoBarHotkey, InfoBarJobman:
 			x.__init__(self)
 
 		self.helpList.append((self["actions"], "InfobarActions", [("showMovies", _("Watch recordings..."))]))
@@ -153,17 +158,97 @@ class InfoBar(InfoBarBase, InfoBarShowHide,
 		self.session.open(MoviePlayer, ref, slist=self.servicelist, lastservice=self.session.nav.getCurrentlyPlayingServiceOrGroup(), infobar=self)
 
 
-class MoviePlayer(InfoBarBase, InfoBarShowHide, InfoBarMenu, InfoBarSeek, InfoBarShowMovies, InfoBarInstantRecord, InfoBarVmodeButton,
-		InfoBarAudioSelection, HelpableScreen, InfoBarNotifications, InfoBarServiceNotifications, InfoBarPVRState,
+def setAudioTrack(service):
+	try:
+		from Tools.ISO639 import LanguageCodes as langC
+		tracks = service and service.audioTracks()
+		nTracks = tracks and tracks.getNumberOfTracks() or 0
+		if not nTracks:
+			return
+		idx = 0
+		trackList = []
+		for i in list(range(nTracks)):
+			audioInfo = tracks.getTrackInfo(i)
+			lang = audioInfo.getLanguage()
+			if lang in langC:
+				lang = langC[lang][0]
+			desc = audioInfo.getDescription()
+			track = idx, lang, desc
+			idx += 1
+			trackList += [track]
+		seltrack = tracks.getCurrentTrack()
+		# we need default selected language from image
+		# to set the audiotrack if "config.autolanguage.audio_autoselect...values" are not set
+		from Components.International import international
+		syslang = international.getLanguage()
+		syslang = langC[syslang][0]
+		if (config.autolanguage.audio_autoselect1.value or config.autolanguage.audio_autoselect2.value or config.autolanguage.audio_autoselect3.value or config.autolanguage.audio_autoselect4.value) != "---":
+			audiolang = [config.autolanguage.audio_autoselect1.value, config.autolanguage.audio_autoselect2.value, config.autolanguage.audio_autoselect3.value, config.autolanguage.audio_autoselect4.value]
+			caudiolang = True
+		else:
+			audiolang = syslang
+			caudiolang = False
+		useAc3 = config.autolanguage.audio_defaultac3.value
+		if useAc3:
+			matchedAc3 = tryAudioTrack(tracks, audiolang, caudiolang, trackList, seltrack, useAc3)
+			if matchedAc3:
+				return
+			matchedMpeg = tryAudioTrack(tracks, audiolang, caudiolang, trackList, seltrack, False)
+			if matchedMpeg:
+				return
+			tracks.selectTrack(0)    # fallback to track 1(0)
+			return
+		else:
+			matchedMpeg = tryAudioTrack(tracks, audiolang, caudiolang, trackList, seltrack, False)
+			if matchedMpeg:
+				return
+			matchedAc3 = tryAudioTrack(tracks, audiolang, caudiolang, trackList, seltrack, useAc3)
+			if matchedAc3:
+				return
+			tracks.selectTrack(0)    # fallback to track 1(0)
+	except Exception as e:
+		print("[MoviePlayer] audioTrack exception:\n" + str(e))
+
+
+def tryAudioTrack(tracks, audiolang, caudiolang, trackList, seltrack, useAc3):
+	for entry in audiolang:
+		if caudiolang:
+			# we need here more replacing for other language, or new configs with another list !!!
+			# choice gives only the value, never the description
+			# so we can also make some changes in "config.py" to get the description too, then we dont need replacing here !
+			entry = entry.replace('eng qaa Englisch', 'English').replace('deu ger', 'German')
+		for x in trackList:
+			if entry == x[1] and seltrack == x[0]:
+				if useAc3:
+					if x[2].startswith('AC'):
+						print("[MoviePlayer] audio track is current selected track: " + str(x))
+						return True
+				else:
+					print("[MoviePlayer] audio track is current selected track: " + str(x))
+					return True
+			elif entry == x[1] and seltrack != x[0]:
+				if useAc3:
+					if x[2].startswith('AC'):
+						print("[MoviePlayer] audio track match: " + str(x))
+						tracks.selectTrack(x[0])
+						return True
+				else:
+					print("[MoviePlayer] audio track match: " + str(x))
+					tracks.selectTrack(x[0])
+					return True
+	return False
+
+
+class MoviePlayer(InfoBarBase, InfoBarShowHide, InfoBarMenu, InfoBarSeek, InfoBarShowMovies, InfoBarInstantRecord, InfoBarVmodeButton, InfoBarResolutionSelection, InfoBarAspectSelection,
+		InfoBarAudioSelection, InfoBarNotifications, InfoBarServiceNotifications, InfoBarPVRState,
 		InfoBarCueSheetSupport, InfoBarMoviePlayerSummarySupport, InfoBarSubtitleSupport, Screen, InfoBarTeletextPlugin,
-		InfoBarServiceErrorPopupSupport, InfoBarExtensions, InfoBarPlugins, InfoBarPiP, InfoBarHDMI, InfoBarHotkey, InfoBarJobman):
+		InfoBarServiceErrorPopupSupport, InfoBarExtensions, InfoBarPlugins, InfoBarPiP, InfoBarHDMI, InfoBarHdmi2, InfoBarHotkey, InfoBarJobman):
 
 	ENABLE_RESUME_SUPPORT = True
-	ALLOW_SUSPEND = True
 	movie_instance = None
 
 	def __init__(self, session, service, slist=None, lastservice=None, infobar=None):
-		Screen.__init__(self, session)
+		Screen.__init__(self, session, enableHelp=True)
 
 		self["actions"] = HelpableActionMap(self, ["MoviePlayerActions"],
 			{
@@ -179,20 +264,15 @@ class MoviePlayer(InfoBarBase, InfoBarShowHide, InfoBarMenu, InfoBarSeek, InfoBa
 				"right": self.right
 			}, prio=-2)
 
-		self["InstantExtensionsActions"] = HelpableActionMap(self, ["InfobarExtensions"],
-			{
-				"extensions": (self.showExtensionSelection, _("Show extensions...")),
-			}, 1) # lower priority
-
 		self["state"] = Label()
 		self["speed"] = Label()
 		self["statusicon"] = MultiPixmap()
 
 		self.allowPiP = True
 
-		for x in HelpableScreen, InfoBarShowHide, InfoBarMenu, \
+		for x in InfoBarShowHide, InfoBarMenu, \
 				InfoBarBase, InfoBarSeek, InfoBarShowMovies, InfoBarInstantRecord, InfoBarVmodeButton,\
-				InfoBarAudioSelection, InfoBarNotifications, \
+				InfoBarAudioSelection, InfoBarNotifications, InfoBarResolutionSelection, InfoBarAspectSelection, \
 				InfoBarServiceNotifications, InfoBarPVRState, InfoBarCueSheetSupport, \
 				InfoBarMoviePlayerSummarySupport, InfoBarSubtitleSupport, \
 				InfoBarTeletextPlugin, InfoBarServiceErrorPopupSupport, InfoBarExtensions, \
@@ -202,6 +282,14 @@ class MoviePlayer(InfoBarBase, InfoBarShowHide, InfoBarMenu, InfoBarSeek, InfoBa
 		self.servicelist = slist
 		self.infobar = infobar
 		self.lastservice = lastservice or session.nav.getCurrentlyPlayingServiceOrGroup()
+		path = splitext(service.getPath())[0]
+		subs = []
+		for sub in ("srt", "ass", "ssa"):
+			subs = glob("%s*.%s" % (path, sub))
+			if subs:
+				break
+		if subs:
+			service.setSubUri(subs[0])  # Support currently only one external sub
 		session.nav.playService(service)
 		self.cur_service = service
 		self.returning = False

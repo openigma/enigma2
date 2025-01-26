@@ -1,8 +1,11 @@
+# -*- coding: utf-8 -*-
 from os.path import isfile
 
-from enigma import eRCInput, eTimer, eWindow, getDesktop
+from enigma import eRCInput, eTimer, eWindow , getDesktop
 
+from skin import GUI_SKIN_ID, applyAllAttributes
 from skin import GUI_SKIN_ID, applyAllAttributes, menus, screens, setups
+from Components.ActionMap import ActionMap
 from Components.config import config
 from Components.GUIComponent import GUIComponent
 from Components.Pixmap import Pixmap
@@ -12,16 +15,19 @@ from Tools.CList import CList
 from Tools.Directories import SCOPE_GUISKIN, resolveFilename
 from Tools.LoadPixmap import LoadPixmap
 
+
 # The lines marked DEBUG: are proposals for further fixes or improvements.
 # Other commented out code is historic and should probably be deleted if it is not going to be used.
-
-
+#
 class Screen(dict):
-	NO_SUSPEND, SUSPEND_STOPS, SUSPEND_PAUSES = range(3)
-	ALLOW_SUSPEND = NO_SUSPEND
+	NO_SUSPEND = False  # Deprecated feature needed for plugins
+	SUSPEND_STOPS = True  # Deprecated feature needed for plugins
+	SUSPEND_PAUSES = True  # Deprecated feature needed for plugins
+
+	ALLOW_SUSPEND = True
 	globalScreen = None
 
-	def __init__(self, session, parent=None, mandatoryWidgets=None):
+	def __init__(self, session, parent=None, mandatoryWidgets=None, enableHelp=False):
 		dict.__init__(self)
 		className = self.__class__.__name__
 		self.skinName = className
@@ -58,6 +64,11 @@ class Screen(dict):
 		self.screenTitle = ""  # This is the current screen title without the path.
 		self.handledWidgets = []
 		self.setImage(className)
+		if enableHelp:
+			self["helpActions"] = ActionMap(["HelpActions"], {
+				"displayHelp": self.showHelp
+			}, prio=0)
+			self["key_help"] = StaticText(_("HELP"))
 
 	def __repr__(self):
 		return str(type(self))
@@ -150,6 +161,12 @@ class Screen(dict):
 			if isinstance(val, GUIComponent) or isinstance(val, Source):
 				val.onHide()
 
+	def isAlreadyShown(self):  # Already shown is false until the screen is really shown (after creation).
+		return self.already_shown
+
+	def isStandAlone(self):  # Stand alone screens (for example web screens) don't care about having or not having focus.
+		return self.stand_alone
+
 	def getScreenPath(self):
 		return self.screenPath
 
@@ -196,6 +213,18 @@ class Screen(dict):
 	def setFocus(self, o):
 		self.instance.setFocus(o.instance)
 
+	def callHelpAction(self, *args):
+		if args:
+			(actionMap, context, action) = args
+			actionMap.action(context, action)
+
+	def showHelp(self):
+		from Screens.HelpMenu import HelpMenu  # Import needs to be here because of a circular import.
+		if hasattr(self, "secondInfoBarScreen"):
+			if self.secondInfoBarScreen and self.secondInfoBarScreen.shown:
+				self.secondInfoBarScreen.hide()
+		self.session.openWithCallback(self.callHelpAction, HelpMenu, self.helpList)
+
 	def setKeyboardModeNone(self):
 		rcinput = eRCInput.getInstance()
 		rcinput.setKeyboardMode(rcinput.kmNone)
@@ -241,11 +270,14 @@ class Screen(dict):
 				f()
 
 	def applySkin(self):
-		self.scale = ((getDesktop(GUI_SKIN_ID).size().width(), getDesktop(GUI_SKIN_ID).size().width()), (getDesktop(GUI_SKIN_ID).size().height(), getDesktop(GUI_SKIN_ID).size().height()))
+		bounds = (getDesktop(GUI_SKIN_ID).size().width(), getDesktop(GUI_SKIN_ID).size().height())
+		resolution = bounds
 		zPosition = 0
 		for (key, value) in self.skinAttributes:
-			if key in ("baseResolution", "resolution"):
-				self.scale = tuple([(self.scale[i][0], int(x)) for i, x in enumerate(value.split(","))])
+			if key == "handledWidgets":
+				self.handledWidgets = [x.strip() for x in value.split(",")]
+			elif key == "resolution":
+				resolution = tuple([int(x.strip()) for x in value.split(",")])
 			elif key == "zPosition":
 				zPosition = int(value)
 		if not self.instance:
@@ -256,7 +288,7 @@ class Screen(dict):
 			for attribute in self.skinAttributes:
 				if attribute[0] == "title":
 					self.setTitle(_(attribute[1]))
-		self.skinAttributes.sort(key=lambda a: {"position": 1}.get(a[0], 0))  # We need to make sure that certain attributes come last.
+		self.scale = ((bounds[0], resolution[0]), (bounds[1], resolution[1]))
 		applyAllAttributes(self.instance, self.desktop, self.skinAttributes, self.scale)
 		self.createGUIScreen(self.instance, self.desktop)
 
@@ -292,10 +324,6 @@ class Screen(dict):
 				exec(f, globals(), locals())  # Python 3
 			else:
 				f()
-		for key in self:  # nudge TemplatedMultiContent so receives self.scale set above
-			val = self[key]
-			if "Components.Converter.TemplatedMultiContent" in str(getattr(val, "downstream_elements", None)):
-				val.downstream_elements.changed((val.CHANGED_DEFAULT,))
 
 	def deleteGUIScreen(self):
 		for (name, val) in self.items():
@@ -317,10 +345,10 @@ class Screen(dict):
 class ScreenSummary(Screen):
 	skin = """
 	<screen position="fill" flags="wfNoBorder">
-		<widget source="global.CurrentTime" render="Label" position="0,0" size="e,20" font="Regular;16" halign="center" valign="center">
+		<widget source="global.CurrentTime" render="Label" position="0,0" size="e,20" font="Regular;16" horizontalAlignment="center" verticalAlignment="center">
 			<convert type="ClockToText">WithSeconds</convert>
 		</widget>
-		<widget source="Title" render="Label" position="0,25" size="e,45" font="Regular;18" halign="center" valign="center" />
+		<widget source="Title" render="Label" position="0,25" size="e,45" font="Regular;18" horizontalAlignment="center" verticalAlignment="center" />
 	</screen>"""
 
 	def __init__(self, session, parent):

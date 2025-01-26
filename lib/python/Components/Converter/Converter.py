@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from Components.Element import Element
 
 
@@ -15,3 +16,10 @@ class Converter(Element):
 
 	def appendToStringWithSeparator(self, text, part):
 		return f"{text}{self.separator or ' '}{part}" if text else part
+
+	def appendToStringWithSeparator(self, str, part):
+		if str == "":
+			str = part
+		else:
+			str = str + "  " + self.separator + "  " + part
+		return str

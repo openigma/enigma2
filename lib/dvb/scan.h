@@ -86,7 +86,7 @@ class eDVBScan: public sigc::trackable, public iObject
 	void addKnownGoodChannel(const eDVBChannelID &chid, iDVBFrontendParameters *feparm);
 	void addChannelToScan(iDVBFrontendParameters *feparm);
 
-	int sameChannel(iDVBFrontendParameters *ch1, iDVBFrontendParameters *ch2, bool exact=false) const;
+	int sameChannel(iDVBFrontendParameters *ch1, iDVBFrontendParameters *ch2, bool exact, int offset) const;
 
 	void channelDone();
 
@@ -98,6 +98,8 @@ class eDVBScan: public sigc::trackable, public iObject
 	int m_networkid;
 	bool m_usePAT;
 	bool m_scan_debug;
+	bool m_updateLCN;
+
 public:
 	eDVBScan(iDVBChannel *channel, bool usePAT=true, bool debug=true );
 	~eDVBScan();

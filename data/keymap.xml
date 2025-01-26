@@ -1,10 +1,10 @@
-
 <!--
 	Flag meanings in <key /> elements:
-	"m": Action active on key "Make".
-	"b": Action active on key "Break".
-	"r": Action active on key repeats.
-	"l": Action on long keypress.
+	"m": Action active on key "Make" event.
+	"b": Action active on key "Break" event.
+	"r": Action active on key "Repeat" event (when a button repeats).
+	"l": Action active on key "Long" event (when a button has been held down).
+	"s": Action active on key "Stop" event (when a long pressed button is released).
 -->
 
 <keymap>
@@ -16,7 +16,11 @@
 
 	<map context="GlobalActions">
 		<key id="KEY_VOLUMEUP" mapto="volumeUp" flags="mr" />
+		<key id="KEY_VOLUMEUP" mapto="volumeUpLong" flags="l" />
+		<key id="KEY_VOLUMEUP" mapto="volumeUpStop" flags="s" />
 		<key id="KEY_VOLUMEDOWN" mapto="volumeDown" flags="mr" />
+		<key id="KEY_VOLUMEDOWN" mapto="volumeDownLong" flags="l" />
+		<key id="KEY_VOLUMEDOWN" mapto="volumeDownStop" flags="s" />
 		<key id="KEY_MUTE" mapto="volumeMute" flags="m" />
 		<key id="KEY_MUTE" mapto="volumeMuteLong" flags="l" />
 		<key id="KEY_POWER" mapto="power_long" flags="l" />
@@ -36,24 +40,66 @@
 	-->
 
 	<map context="HelpActions">
+		<key id="KEY_EXIT" mapto="cancel" flags="m" />
+		<key id="KEY_OK" mapto="select" flags="m" />
+		<!-- <key id="KEY_HELP" mapto="displayHelp" flags="m" /> -->
+		<!-- <key id="KEY_HELP" mapto="DISPLAYHELP" flags="b" /> -->
 		<key id="KEY_HELP" mapto="displayHelp" flags="b" />
-		<key id="KEY_HELP" mapto="toggleConfig" flags="l" />
+		<key id="KEY_HELP" mapto="displayHelpLong" flags="l" />
 		<!-- Keyboard specific buttons -->
+		<key id="KEY_ESC" mapto="cancel" flags="m" />
+		<key id="KEY_ENTER" mapto="select" flags="m" />
+		<!-- <key id="KEY_F1" mapto="displayHelp" flags="m" /> -->
+		<!-- <key id="KEY_F1" mapto="DISPLAYHELP" flags="b" /> -->
 		<key id="KEY_F1" mapto="displayHelp" flags="b" />
-		<key id="KEY_F1" mapto="toggleConfig" flags="l" />
+		<key id="KEY_F1" mapto="displayHelpLong" flags="l" />
+	</map>
+
+	<map context="HelpMenuListboxActions">
+		<!--
+		Map to catch break events for the ListboxActions keys
+		in Screens.HelpMenu so that those are not passed through
+		to the HelpMenu wildcard actions as unhandled keypresses.
+		-->
+		<device name="keyboard">
+			<key id="a" mapto="ignore" flags="b" />
+			<key id="b" mapto="ignore" flags="b" />
+		</device>
+		<key id="KEY_UP" mapto="ignore" flags="b" />
+		<key id="KEY_DOWN" mapto="ignore" flags="b" />
+		<key id="KEY_HOME" mapto="ignore" flags="b" />
+		<key id="KEY_END" mapto="ignore" flags="b" />
+		<key id="KEY_PAGEUP" mapto="ignore" flags="b" />
+		<key id="KEY_PAGEDOWN" mapto="ignore" flags="b" />
+		<key id="KEY_LEFT" mapto="ignore" flags="b" />
+		<key id="KEY_RIGHT" mapto="ignore" flags="b" />
+		<key id="KEY_CHANNELUP" mapto="ignore" flags="b" />
+		<key id="KEY_CHANNELDOWN" mapto="ignore" flags="b" />
+		<key id="KEY_REWIND" mapto="ignore" flags="b" />
+		<key id="KEY_FASTFORWARD" mapto="ignore" flags="b" />
+		<key id="1" mapto="ignore" flags="b" />
+		<key id="2" mapto="ignore" flags="b" />
 	</map>
 
 	<map context="NavigationActions">
+		<key id="KEY_REWIND" mapto="top" flags="m" />
 		<key id="KEY_CHANNELUP" mapto="top" flags="l" />
 		<key id="KEY_CHANNELUP" mapto="pageUp" flags="b" />
 		<key id="KEY_UP" mapto="up" flags="mr" />
-		<key id="KEY_REWIND" mapto="first" flags="m" />
+		<!-- <key id="KEY_PREVIOUS" mapto="first" flags="m" /> -->
+		<key id="KEY_STOP" mapto="first" flags="m" /><!-- Was for text editing. -->
 		<key id="KEY_LEFT" mapto="left" flags="mr" />
 		<key id="KEY_RIGHT" mapto="right" flags="mr" />
-		<key id="KEY_FASTFORWARD" mapto="last" flags="m" />
+		<!-- <key id="KEY_NEXT" mapto="last" flags="m" /> -->
+		<key id="KEY_PLAYPAUSE" mapto="last" flags="m" /><!-- Was for text editing. -->
+		<key id="KEY_PLAY" mapto="last" flags="m" /><!-- Was for text editing. -->
+		<key id="KEY_PAUSE" mapto="last" flags="m" /><!-- Was for text editing. -->
 		<key id="KEY_DOWN" mapto="down" flags="mr" />
 		<key id="KEY_CHANNELDOWN" mapto="pageDown" flags="b" />
 		<key id="KEY_CHANNELDOWN" mapto="bottom" flags="l" />
+		<!--
+		<key id="KEY_FASTFORWARD" mapto="bottom" flags="m" />
+		-->
 		<!-- Keyboard specific buttons -->
 		<key id="KEY_HOME" mapto="top" flags="m" />
 		<key id="KEY_PAGEUP" mapto="pageUp" flags="mr" />
@@ -87,6 +133,45 @@
 		<key id="KEY_KP7" mapto="7" flags="m" />
 		<key id="KEY_KP8" mapto="8" flags="m" />
 		<key id="KEY_KP9" mapto="9" flags="m" />
+	</map>
+
+	<map context="PreviousNextActions">
+		<key id="KEY_PREVIOUS" mapto="previous" flags="mr" />
+		<!-- <key id="KEY_PREVIOUS" mapto="PREVIOUS" flags="b" /> -->
+		<!-- <key id="KEY_PREVIOUS" mapto="previousLong" flags="l" /> -->
+		<key id="KEY_NEXT" mapto="next" flags="mr" />
+		<!-- <key id="KEY_NEXT" mapto="NEXT" flags="b" /> -->
+		<!-- <key id="KEY_NEXT" mapto="nextLong" flags="l" /> -->
+	</map>
+
+	<map context="SelectCancelActions">
+		<key id="KEY_OK" mapto="select" flags="m" />
+		<key id="KEY_OK" mapto="SELECT" flags="b" />
+		<key id="KEY_OK" mapto="SELECTLong" flags="l" />
+		<key id="KEY_GREEN" mapto="select" flags="m" />
+		<key id="KEY_GREEN" mapto="SELECT" flags="b" />
+		<key id="KEY_GREEN" mapto="SELECTLong" flags="l" />
+		<key id="KEY_EXIT" mapto="cancel" flags="b" />
+		<key id="KEY_RED" mapto="cancel" flags="b" />
+		<key id="KEY_EXIT" mapto="close" flags="l" />
+		<key id="KEY_RED" mapto="close" flags="l" />
+		<!-- Keyboard specific buttons -->
+		<key id="KEY_ENTER" mapto="select" flags="m" />
+		<key id="KEY_ENTER" mapto="SELECT" flags="b" />
+		<key id="KEY_ENTER" mapto="SELECTLong" flags="l" />
+		<key id="KEY_F5" mapto="select" flags="m" />
+		<key id="KEY_F5" mapto="SELECT" flags="b" />
+		<key id="KEY_F5" mapto="SELECTLong" flags="l" />
+		<key id="KEY_ESC" mapto="cancel" flags="b" />
+		<key id="KEY_F6" mapto="cancel" flags="b" />
+		<key id="KEY_ESC" mapto="close" flags="l" />
+		<key id="KEY_F6" mapto="close" flags="l" />
+		<key id="\x0a" mapto="select" flags="m" />
+		<key id="\x1b" mapto="cancel" flags="m" />
+	</map>
+
+	<map context="ShowVirtualKeyboardActions">
+		<key id="KEY_TEXT" mapto="showVirtualKeyboard" flags="m" />
 	</map>
 
 	<map context="TextEditActions">
@@ -144,40 +229,6 @@
 		<key id="KEY_TAB" mapto="select" flags="m" />
 	</map>
 
-	<map context="ListboxHelpMenuActions">
-		<device name="keyboard">
-			<key id="a" mapto="ignore" flags="b" />
-			<key id="b" mapto="ignore" flags="b" />
-		</device>
-		<key id="KEY_REWIND" mapto="moveEndM" flags="m" />
-		<key id="KEY_REWIND" mapto="moveEndR" flags="r" />
-		<key id="KEY_REWIND" mapto="moveEndL" flags="l" />
-		<key id="KEY_REWIND" mapto="moveEndB" flags="b" />
-		<key id="KEY_LEFT" mapto="ignore" flags="b" />
-		<key id="KEY_CHANNELUP" mapto="pageUpM" flags="m" />
-		<key id="KEY_CHANNELUP" mapto="pageUpR" flags="r" />
-		<key id="KEY_CHANNELUP" mapto="pageUpL" flags="l" />
-		<key id="KEY_CHANNELUP" mapto="pageUpB" flags="b" />
-		<key id="KEY_UP" mapto="ignore" flags="b" />
-		<key id="KEY_DOWN" mapto="ignore" flags="b" />
-		<key id="KEY_RIGHT" mapto="ignore" flags="b" />
-		<key id="KEY_CHANNELDOWN" mapto="pageDownM" flags="m" />
-		<key id="KEY_CHANNELDOWN" mapto="pageDownR" flags="r" />
-		<key id="KEY_CHANNELDOWN" mapto="pageDownL" flags="l" />
-		<key id="KEY_CHANNELDOWN" mapto="pageDownB" flags="b" />
-		<key id="KEY_FASTFORWARD" mapto="moveTopM" flags="m" />
-		<key id="KEY_FASTFORWARD" mapto="moveTopR" flags="r" />
-		<key id="KEY_FASTFORWARD" mapto="moveTopL" flags="l" />
-		<key id="KEY_FASTFORWARD" mapto="moveTopB" flags="b" />
-		<!-- Keyboard specific buttons -->
-		<key id="KEY_HOME" mapto="ignore" flags="b" />
-		<key id="KEY_PAGEUP" mapto="ignore" flags="b" />
-		<key id="KEY_PAGEDOWN" mapto="ignore" flags="b" />
-		<key id="KEY_END" mapto="ignore" flags="b" />
-		<key id="1" mapto="ignore" flags="b" />
-		<key id="2" mapto="ignore" flags="b" />
-	</map>
-	
 	<map context="VirtualKeyBoardActions">
 		<!-- Also uses NumberActions -->
 		<!-- Also uses TextEditActions -->
@@ -226,8 +277,8 @@
 		<key id="KEY_END" mapto="moveEnd" flags="mr" />
 		<key id="KEY_PAGEUP" mapto="pageUp" flags="mr" />
 		<key id="KEY_PAGEDOWN" mapto="pageDown" flags="mr" />
-		<key id="KEY_LEFT" mapto="pageUp" flags="mr" />
-		<key id="KEY_RIGHT" mapto="pageDown" flags="mr" />
+		<key id="KEY_LEFT" mapto="moveLeft" flags="mr" />
+		<key id="KEY_RIGHT" mapto="moveRight" flags="mr" />
 		<key id="1" mapto="moveUp" flags="mr" />
 		<key id="2" mapto="moveDown" flags="mr" />
 	</map>
@@ -248,6 +299,8 @@
 	</map>
 
 	<map context="SetupActions">
+		<key id="KEY_INFO" mapto="info" flags="m" />
+		<key id="KEY_MENU" mapto="menu" flags="m" />
 		<key id="KEY_ENTER" mapto="ok" flags="m" />
 		<key id="KEY_OK" mapto="ok" flags="m" />
 		<key id="KEY_EXIT" mapto="cancel" flags="m" />
@@ -324,6 +377,13 @@
 		<key id="BTN_1" mapto="zapDown" flags="mr" />
 	</map>
 
+	<map context="InfobarHDMIActions">
+		<key id="KEY_AUX" mapto="HDMIin" flags="b" />
+		<key id="KEY_AUX" mapto="HDMIinLong" flags="l" />
+		<key id="KEY_CONTEXT_MENU" mapto="HDMIin" flags="b" />
+		<key id="KEY_CONTEXT_MENU" mapto="HDMIinLong" flags="l" />
+	</map>
+
 	<map context="MinuteInputActions">
 		<key id="KEY_UP" mapto="up" flags="mr" />
 		<key id="KEY_DOWN" mapto="down" flags="mr" />
@@ -364,6 +424,7 @@
 		<key id="KEY_ENTER" mapto="ok" flags="m" />
 		<key id="KEY_EXIT" mapto="back" flags="m" />
 		<key id="KEY_ESC" mapto="back" flags="m" />
+		<key id="KEY_INFO" mapto="info" flags="m" />
 		<key id="KEY_UP" mapto="up" flags="mr" />
 		<key id="KEY_DOWN" mapto="down" flags="mr" />
 		<key id="KEY_LEFT" mapto="left" flags="mr" />
@@ -402,9 +463,18 @@
 		<key id="KEY_PVR" mapto="showMovies" flags="b" />
 	</map>
 
-	<map context="InfobarAudioSelectionActions">
-		<key id="KEY_AUDIO" mapto="audioSelection" flags="m" />
-		<key id="KEY_YELLOW" mapto="audioSelection" flags="b" />
+	<map context="InfobarAudioSelectionActions">		
+		<key id="KEY_YELLOW" mapto="yellow_key" flags="b" />
+		<key id="KEY_YELLOW" mapto="yellow_key" flags="l" />
+		<key id="KEY_AUDIO" mapto="audioSelection" flags="b" />
+		<key id="KEY_AUDIO" mapto="audioSelectionLong" flags="l" />
+		<key id="KEY_OPTION" mapto="audioSelection" flags="b" />
+	</map>
+
+	<map context="InfobarAspectSelectionActions">
+		<key id="KEY_GREEN" mapto="aspectSelection" flags="l" />
+		<key id="KEY_MODE" mapto="aspectSelection" flags="l" />
+		<key id="KEY_MODE" mapto="aspectSelection" flags="b" />
 	</map>
 
 	<map context="InfobarSubtitleSelectionActions">
@@ -426,8 +496,9 @@
 	</map>
 
 	<map context="InfobarVmodeButtonActions">
-		<key id="KEY_VMODE" mapto="vmodeSelection" flags="b" />
-		<key id="KEY_GREEN" mapto="vmodeSelection" flags="l" />
+		<key id="KEY_SWITCHVIDEOMODE" mapto="vmodeSelection" flags="b" />
+		<!-- <key id="KEY_GREEN" mapto="vmodeSelection" flags="l" /> -->
+		<key id="KEY_ANGLE" mapto="vmodeSelection" flags="m" />
 	</map>
 
 	<map context="InfobarPiPActions">
@@ -697,21 +768,35 @@
 		<key id="KEY_EPG" mapto="openSingleServiceEPG" flags="m" />
 	</map>
 
+	<map context="OkActions">
+		<key id="KEY_OK" mapto="ok" flags="m" />
+		<key id="KEY_OK" mapto="OK" flags="b" />
+		<key id="KEY_OK" mapto="OKLong" flags="l" />
+		<!-- Keyboard specific buttons -->
+		<key id="KEY_ENTER" mapto="ok" flags="m" />
+		<key id="KEY_ENTER" mapto="OK" flags="b" />
+		<key id="KEY_ENTER" mapto="OKLong" flags="l" />
+	</map>
+
 	<map context="OkCancelActions">
 		<key id="\x0a" mapto="ok" flags="m" />
 		<key id="\x1b" mapto="cancel" flags="m" />
 		<!-- use this on rcu, ok? -->
 		<key id="KEY_OK" mapto="ok" flags="m" />
+		<key id="KEY_OK" mapto="OKLong" flags="l" />
 		<key id="KEY_EXIT" mapto="cancel" flags="m" />
+		<key id="KEY_EXIT" mapto="close" flags="l" />
 		<key id="KEY_ENTER" mapto="ok" flags="m" />
+		<key id="KEY_ENTER" mapto="OKLong" flags="l" />
 		<key id="KEY_ESC" mapto="cancel" flags="m" />
+		<key id="KEY_ESC" mapto="close" flags="l" />
 	</map>
 
 	<map context="DirectionActions">
-		<key id="KEY_UP" mapto="up" flags="m" />
-		<key id="KEY_DOWN" mapto="down" flags="m" />
-		<key id="KEY_LEFT" mapto="left" flags="m" />
-		<key id="KEY_RIGHT" mapto="right" flags="m" />
+		<key id="KEY_UP" mapto="up" flags="mr" />
+		<key id="KEY_DOWN" mapto="down" flags="mr" />
+		<key id="KEY_LEFT" mapto="left" flags="mr" />
+		<key id="KEY_RIGHT" mapto="right" flags="mr" />
 		<key id="KEY_UP" mapto="upRepeated" flags="r" />
 		<key id="KEY_DOWN" mapto="downRepeated" flags="r" />
 		<key id="KEY_LEFT" mapto="leftRepeated" flags="r" />
@@ -720,6 +805,8 @@
 		<key id="KEY_RIGHT" mapto="rightUp" flags="b" />
 		<key id="KEY_UP" mapto="upUp" flags="b" />
 		<key id="KEY_DOWN" mapto="downUp" flags="b" />
+		<key id="KEY_CHANNELUP" mapto="chplus" flags="m" />
+		<key id="KEY_CHANNELDOWN" mapto="chminus" flags="m" />
 		<key id="KEY_PREVIOUS" mapto="moveUp" flags="m" />
 		<key id="KEY_NEXT" mapto="moveDown" flags="m" />
 	</map>
@@ -736,6 +823,40 @@
 		<key id="KEY_MUTE" mapto="volumeMute" flags="m" />
 	</map>
 
+	<map context="CancelActions">
+		<key id="KEY_RED" mapto="cancel" flags="m" />
+		<key id="KEY_EXIT" mapto="cancel" flags="b" />
+		<key id="KEY_EXIT" mapto="close" flags="l" />
+		<!-- Keyboard specific buttons -->
+		<key id="KEY_F5" mapto="cancel" flags="m" />
+		<key id="KEY_ESC" mapto="cancel" flags="b" />
+		<key id="KEY_ESC" mapto="close" flags="l" />
+	</map>
+
+	<map context="OkSaveActions">
+		<key id="KEY_OK" mapto="ok" flags="m" />
+		<key id="KEY_OK" mapto="OK" flags="b" />
+		<key id="KEY_OK" mapto="OKLong" flags="l" />
+		<key id="KEY_GREEN" mapto="save" flags="m" />
+		<!-- Keyboard specific buttons -->
+		<key id="KEY_ENTER" mapto="ok" flags="m" />
+		<key id="KEY_ENTER" mapto="OK" flags="b" />
+		<key id="KEY_ENTER" mapto="OKLong" flags="l" />
+		<key id="KEY_F6" mapto="save" flags="m" />
+	</map>
+
+	<map context="CancelSaveActions">
+		<key id="KEY_RED" mapto="cancel" flags="m" />
+		<key id="KEY_GREEN" mapto="save" flags="m" />
+		<key id="KEY_EXIT" mapto="cancel" flags="b" />
+		<key id="KEY_EXIT" mapto="close" flags="l" />
+		<!-- Keyboard specific buttons -->
+		<key id="KEY_F5" mapto="cancel" flags="m" />
+		<key id="KEY_F6" mapto="save" flags="m" />
+		<key id="KEY_ESC" mapto="cancel" flags="b" />
+		<key id="KEY_ESC" mapto="close" flags="l" />
+	</map>
+
 	<map context="ColorActions">
 		<key id="KEY_RED" mapto="red" flags="m" />
 		<key id="KEY_GREEN" mapto="green" flags="m" />
@@ -747,6 +868,27 @@
 		<key id="KEY_F1" mapto="f1" flags="m" />
 		<key id="KEY_F2" mapto="f2" flags="m" />
 		<key id="KEY_F3" mapto="f3" flags="m" />
+	</map>
+
+	<map context="DNSSettingsActions">
+		<key id="KEY_YELLOW" mapto="dnsAdd" flags="m" />
+		<key id="KEY_BLUE" mapto="dnsRemove" flags="m" />
+		<key id="KEY_TV" mapto="moveUp" flags="mr" />
+		<key id="KEY_RADIO" mapto="moveDown" flags="mr" />
+		<!-- Keyboard specific buttons -->
+		<key id="KEY_F7" mapto="dnsAdd" flags="m" />
+		<key id="KEY_F8" mapto="dnsRemove" flags="m" />
+	</map>
+
+	<map context="LocaleSelectionActions">
+		<key id="KEY_RED" mapto="cancel" flags="m" />
+		<key id="KEY_GREEN" mapto="save" flags="m" />
+		<key id="KEY_YELLOW" mapto="manage" flags="m" />
+		<key id="KEY_EXIT" mapto="cancel" flags="b" />
+		<key id="KEY_EXIT" mapto="close" flags="l" />
+		<key id="KEY_OK" mapto="select" flags="m" />
+		<key id="KEY_MENU" mapto="menu" flags="m" />
+		<key id="KEY_INFO" mapto="current" flags="m" />
 	</map>
 
 	<map context="MsgBoxActions">
@@ -907,8 +1049,7 @@
 		<key id="KEY_FASTFORWARD" mapto="fastforward" flags="m" />
 		<key id="KEY_PREVIOUSSONG" mapto="skip_back" flags="m" />
 		<key id="KEY_NEXTSONG" mapto="skip_forward" flags="m" />
-		<key id="KEY_SCREEN" mapto="activatePiP" flags="b" />
-		<key id="KEY_SCREEN" mapto="activatePiP_long" flags="l" />
+		<key id="KEY_SCREEN" mapto="activatePiP" flags="m" />
 		<key id="KEY_PROGRAM" mapto="timer" flags="b" />
 		<key id="KEY_PROGRAM" mapto="timer_long" flags="l" />
 		<key id="KEY_EDIT" mapto="timer" flags="b" />
@@ -972,8 +1113,6 @@
 		<key id="KEY_OPTION" mapto="magic_long" flags="l" />
 		<key id="KEY_MP3" mapto="mp3" flags="b" />
 		<key id="KEY_MP3" mapto="mp3_long" flags="l" />
-		<key id="KEY_ARCHIVE" mapto="history" flags="b" />
-		<key id="KEY_ARCHIVE" mapto="history_long" flags="l" />
 	</map>
 	<translate>
 		<device name="gigablue remote control">

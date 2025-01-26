@@ -3,6 +3,7 @@
 #include <csignal>
 #include <fstream>
 #include <sstream>
+#include <algorithm>
 #ifdef __GLIBC__
 #include <execinfo.h>
 #endif
@@ -12,16 +13,11 @@
 #include <lib/base/nconfig.h>
 #include <lib/gdi/gmaindc.h>
 #include <asm/ptrace.h>
+#include <lib/base/modelinformation.h>
+
 #include "version_info.h"
 
 /************************************************/
-
-static const char *crash_emailaddr =
-#ifndef CRASH_EMAILADDR
-	"the OpenPLi forum";
-#else
-	CRASH_EMAILADDR;
-#endif
 
 /* Defined in eerror.cpp */
 void retrieveLogBuffer(const char **p1, unsigned int *s1, const char **p2, unsigned int *s2);
@@ -91,16 +87,74 @@ static void stringFromFile(FILE* f, const char* context, const char* filename)
 		std::string line;
 		std::getline(in, line);
 		fprintf(f, "%s=%s\n", context, line.c_str());
+		in.close();
 	}
 }
 
+static void dumpFile(FILE* f, const char* filename)
+{
+	std::ifstream in(filename);
+	if (in.good()) {
+		do
+		{
+			std::string line;
+			std::getline(in, line);
+			fprintf(f, "%s\n", line.c_str());
+		}
+		while (in.good());
+		in.close();
+	}
+}
+
+
 static bool bsodhandled = false;
+static bool bsodrestart =  true;
+static int bsodcnt = 0;
+
+int getBsodCounter()
+{
+	return bsodcnt;
+}
+
+void resetBsodCounter()
+{
+	bsodcnt = 0;
+}
+
+bool bsodRestart()
+{
+	return bsodrestart;
+}
 
 void bsodFatal(const char *component)
 {
-	/* show no more than one bsod while shutting down/crashing */
-	if (bsodhandled)
+	//handle python crashes
+	bool bsodpython = (eConfigManager::getConfigBoolValue("config.crash.bsodpython", false) && eConfigManager::getConfigBoolValue("config.crash.bsodpython_ready", false));
+	//hide bs after x bs counts and no more write crash log	-> setting values 0-10 (always write the first crashlog)
+	int bsodhide = eConfigManager::getConfigIntValue("config.crash.bsodhide", 5);
+	//restart after x bs counts -> setting values 0-10 (0 = never restart)
+	int bsodmax = eConfigManager::getConfigIntValue("config.crash.bsodmax", 5);
+	//force restart after max crashes
+	int bsodmaxmax = 100;
+
+	bsodcnt++;
+	if ((bsodmax && bsodcnt > bsodmax) || component || bsodcnt > bsodmaxmax)
+		bsodpython = false;
+	if (bsodpython && bsodcnt-1 && bsodcnt > bsodhide && (!bsodmax || bsodcnt < bsodmax) && bsodcnt < bsodmaxmax)
+	{
+		sleep(1);
 		return;
+	}
+	bsodrestart = true;
+
+	/* show no more than one bsod while shutting down/crashing */
+	if (bsodhandled) {
+		if (component) {
+			sleep(1);
+			raise(SIGKILL);
+		}
+		return;
+	}
 	bsodhandled = true;
 
 	if (!component)
@@ -116,9 +170,17 @@ void bsodFatal(const char *component)
 	FILE *f;
 	std::string crashlog_name;
 	std::ostringstream os;
-	os << "/media/hdd/enigma2_crash_";
-	os << time(0);
-	os << ".log";
+	std::ostringstream os_text;
+
+	char dated[22];
+	time_t now_time = time(0);
+	struct tm loctime;
+	localtime_r(&now_time, &loctime);
+	strftime (dated, 21, "%Y%m%d-%H%M%S", &loctime);
+
+	os << getConfigString("config.crash.debugPath", "/home/root/logs/");
+	os << dated;
+	os << "-enigma2-crash.log";
 	crashlog_name = os.str();
 	f = fopen(crashlog_name.c_str(), "wb");
 
@@ -128,7 +190,7 @@ void bsodFatal(const char *component)
 		 * alone because we may be in a crash loop and writing this file
 		 * all night long may damage the flash. Also, usually the first
 		 * crash log is the most interesting one. */
-		crashlog_name = "/home/root/enigma2_crash.log";
+		crashlog_name = "/home/root/logs/enigma2_crash.log";
 		if ((access(crashlog_name.c_str(), F_OK) == 0) ||
 		    ((f = fopen(crashlog_name.c_str(), "wb")) == NULL))
 		{
@@ -166,13 +228,24 @@ void bsodFatal(const char *component)
 			enigma2_rev,
 			component);
 
-		stringFromFile(f, "stbmodel", "/proc/stb/info/boxtype");
-		stringFromFile(f, "stbmodel", "/proc/stb/info/vumodel");
-		stringFromFile(f, "stbmodel", "/proc/stb/info/model");
+		eModelInformation &modelinformation = eModelInformation::getInstance();
+
+		const std::list<std::string> enigmainfovalues {
+			"model",
+			"machinebuild",
+			"imageversion",
+			"imagebuild"
+		};
+
+		for(std::list<std::string>::const_iterator i = enigmainfovalues.begin(); i != enigmainfovalues.end(); ++i)
+		{
+			fprintf(f, "%s=%s\n", i->c_str(), modelinformation.getValue(i->c_str()).c_str());
+		}
+
+		fprintf(f, "\n");
 		stringFromFile(f, "kernelcmdline", "/proc/cmdline");
-		stringFromFile(f, "nimsockets", "/proc/bus/nim_sockets");
-		stringFromFile(f, "imageversion", "/etc/image-version");
-		stringFromFile(f, "imageissue", "/etc/issue.net");
+		fprintf(f, "\nnimsockets:\n");
+		dumpFile(f, "/proc/bus/nim_sockets");
 
 		/* dump the log ringbuffer */
 		fprintf(f, "\n\n");
@@ -183,8 +256,16 @@ void bsodFatal(const char *component)
 
 		/* dump the kernel log */
 		getKlog(f);
-
+		fsync(fileno(f));
 		fclose(f);
+	}
+
+	if (bsodpython && bsodcnt == 1 && !bsodhide) //write always the first crashlog
+	{
+		bsodrestart = false;
+		bsodhandled = false;
+		sleep(1);
+		return;
 	}
 
 	ePtr<gMainDC> my_dc;
@@ -195,21 +276,44 @@ void bsodFatal(const char *component)
 	p.resetClip(eRect(ePoint(0, 0), my_dc->size()));
 	p.setBackgroundColor(gRGB(0x008000));
 	p.setForegroundColor(gRGB(0xFFFFFF));
+	p.clear();
 
 	int hd =  my_dc->size().width() == 1920;
 	ePtr<gFont> font = new gFont("Regular", hd ? 30 : 20);
 	p.setFont(font);
-	p.clear();
 
 	eRect usable_area = eRect(hd ? 30 : 100, hd ? 30 : 70, my_dc->size().width() - (hd ? 60 : 150), hd ? 150 : 100);
 
 	os.str("");
 	os.clear();
-	os << "We are really sorry. Your STB encountered "
-		"a software problem, and needs to be restarted.\n"
-		"Please send the logfile " << crashlog_name << " to " << crash_emailaddr << ".\n"
-		"Your STB restarts in 10 seconds!\n"
-		"Component: " << component;
+	os_text.clear();
+
+	if (!bsodpython)
+	{
+		os_text << "We are really sorry. Your receiver encountered "
+			"a software problem, and needs to be restarted.\n"
+			"Please send the logfile " << crashlog_name << " to (https://github.com/OpenPLi/enigma2).\n"
+			"Your receiver restarts in 10 seconds!\n"
+			"Component: " << component;
+	
+		os << getConfigString("config.crash.debug_text", os_text.str());
+	}
+	else
+	{
+		std::string txt;
+		if (!bsodmax && bsodcnt < bsodmaxmax)
+			txt = "not (max " + std::to_string(bsodmaxmax) + " times)";
+		else if (bsodmax - bsodcnt > 0)
+			txt = "if it happens "+ std::to_string(bsodmax - bsodcnt) + " more times";
+		else
+			txt = "if it happens next times";
+		os_text << "We are really sorry. Your receiver encountered "
+			"a software problem. So far it has occurred " << bsodcnt << " times.\n"
+			"Please send the logfile " << crashlog_name << " to (https://github.com/OpenPLi/enigma2).\n"
+			"Your receiver restarts " << txt << " by python crashes!\n"
+			"Component: " << component;
+		os << os_text.str();
+	}
 
 	p.renderText(usable_area, os.str().c_str(), gPainter::RT_WRAP|gPainter::RT_HALIGN_LEFT);
 
@@ -275,7 +379,22 @@ void bsodFatal(const char *component)
 	 * We'd risk destroying things with every additional instruction we're
 	 * executing here.
 	 */
-	if (component) raise(SIGKILL);
+
+	if (bsodpython)
+	{
+		bsodrestart = false;
+		bsodhandled = false;
+		p.setBackgroundColor(gRGB(0,0,0,0xFF));
+		p.clear();
+		return;
+	}
+	if (component) {
+		/*
+		 *  We need to use a signal that generate core dump.
+		 */
+		if (eConfigManager::getConfigBoolValue("config.crash.coredump", false)) raise(SIGTRAP);
+		raise(SIGKILL);
+	}
 }
 
 void oops(const mcontext_t &context)

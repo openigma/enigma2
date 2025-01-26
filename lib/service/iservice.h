@@ -4,6 +4,7 @@
 #include <lib/python/swig.h>
 #include <lib/python/python.h>
 #include <lib/base/object.h>
+#include <lib/base/estring.h>
 #include <string>
 #include <connection.h>
 #include <list>
@@ -27,6 +28,7 @@ public:
 
 	enum
 	{
+		noFlags=0,
 		isDirectory=1,		// SHOULD enter  (implies mustDescent)
 		mustDescent=2,		// cannot be played directly - often used with "isDirectory" (implies canDescent)
 		/*
@@ -54,9 +56,13 @@ public:
 #ifndef SWIG
 	int data[8];
 	std::string path;
+	std::string alternativeurl;
+	std::string suburi;
 #endif
 	std::string getPath() const { return path; }
 	void setPath( const std::string &n ) { path=n; }
+	void setAlternativeUrl( const std::string &n ) { alternativeurl=n; }
+	void setSubUri( const std::string &n ) { suburi=n; }
 
 	unsigned int getUnsignedData(unsigned int num) const
 	{
@@ -170,6 +176,8 @@ public:
 	eServiceReference(const std::string &string);
 	std::string toString() const;
 	std::string toCompareString() const;
+	std::string toReferenceString() const;
+	std::string toLCNReferenceString(bool trailing=true) const;
 	bool operator==(const eServiceReference &c) const
 	{
 		if (!c || type != c.type)
@@ -399,6 +407,7 @@ public:
 		sCenterDVBSubs,
 
 		sGamma,
+		sVideoInfo,
 
 		sUser = 0x100
 	};
@@ -730,6 +739,7 @@ public:
 		int page_number;
 		int magazine_number;
 		std::string language_code;
+		std::string title;
 	};
 
 	virtual RESULT enableSubtitles(iSubtitleUser *user, SubtitleTrack &track) = 0;
@@ -1052,6 +1062,10 @@ public:
 	virtual SWIG_VOID(RESULT) stream(ePtr<iStreamableService> &SWIG_OUTPUT)=0;
 	virtual SWIG_VOID(RESULT) subServices(ePtr<iSubserviceList> &SWIG_OUTPUT)=0;
 	virtual SWIG_VOID(RESULT) getFilenameExtension(std::string &SWIG_OUTPUT)=0;
+	virtual PyObject *getCutList()
+	{
+		return PyList_New(0);
+	}
 };
 SWIG_TEMPLATE_TYPEDEF(ePtr<iRecordableService>, iRecordableServicePtr);
 

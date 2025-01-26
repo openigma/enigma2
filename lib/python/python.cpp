@@ -6,8 +6,9 @@
 extern "C" PyObject* PyInit__enigma(void);
 extern "C" PyObject* PyInit_eBaseImpl(void);
 extern "C" PyObject* PyInit_eConsoleImpl(void);
-extern void bsodFatal(const char *component);
 extern void quitMainloop(int exitCode);
+extern void bsodFatal(const char *component);
+extern bool bsodRestart();
 
 #define SKIP_PART2
 #include <lib/python/python.h>
@@ -206,13 +207,14 @@ int ePython::call(ePyObject pFunc, ePyObject pArgs)
 		 	PyErr_Print();
 			ePyObject FuncStr = PyObject_Str(pFunc);
 			ePyObject ArgStr = PyObject_Str(pArgs);
-			eLog(lvlFatal, "[ePyObject] (CallObject(%s,%s) failed)", PyUnicode_AsUTF8(FuncStr), PyUnicode_AsUTF8(ArgStr));
+			eDebug("[ePyObject] (PyObject_CallObject(%s,%s) failed)", PyUnicode_AsUTF8(FuncStr), PyUnicode_AsUTF8(ArgStr));
 			Py_DECREF(FuncStr);
 			Py_DECREF(ArgStr);
 			/* immediately show BSOD, so we have the actual error at the bottom */
 		 	bsodFatal(0);
 			/* and make sure we quit (which would also eventually cause a bsod, but with useless termination messages) */
-			quitMainloop(5);
+			if (bsodRestart())
+				quitMainloop(5);
 		}
 	}
 	return res;

@@ -127,27 +127,28 @@ eServiceReference::eServiceReference(const std::string &string)
 		{
 			path=pathstr;
 		}
+		path = urlDecode(path);
+		name = urlDecode(name);
+		if(!name.empty())
+		{
+			std::string res_name = "";
+			std::string res_provider = "";
+			eServiceReference::parseNameAndProviderFromName(name, res_name, res_provider);
+			name = res_name;
+			prov = res_provider;
+		}
 	}
-
-	path = urlDecode(path);
-	name = urlDecode(name);
-	
-	std::string res_name = "";
-	std::string res_provider = "";
-	eServiceReference::parseNameAndProviderFromName(name, res_name, res_provider);
-	name = res_name;
-	prov = res_provider;
 }
 
 std::string eServiceReference::toString() const
 {
 	std::string ret;
-	ret.reserve((6 * sizeof(data)/sizeof(*data)) + 8 + path.length() + name.length()); /* Estimate required space */
+	ret.reserve((6 * sizeof(data) / sizeof(*data)) + 8 + path.length() + name.length()); /* Estimate required space */
 
 	ret += getNum(type);
 	ret += ':';
-	ret += getNum(flags);
-	for (unsigned int i = 0; i < sizeof(data)/sizeof(*data); ++i)
+	ret += getNum(flags & ~eDVBService::dxIntIsinBouquet); // ignore dxIntIsinBouquet because this is only for internal use
+	for (unsigned int i = 0; i < sizeof(data) / sizeof(*data); ++i)
 	{
 		ret += ':';
 		ret += getNum(data[i], 0x10);
@@ -159,7 +160,6 @@ std::string eServiceReference::toString() const
 		ret += ':';
 		ret += encode(name);
 	}
-	
 	std::string fullName = ret;
 	std::string provPart = "•";
 	if (!prov.empty())
@@ -185,6 +185,35 @@ std::string eServiceReference::toCompareString() const
 	}
 	ret += ':';
 	ret += encode(path);
+	return ret;
+}
+
+std::string eServiceReference::toReferenceString() const
+{
+	std::string ret;
+	ret.reserve((6 * sizeof(data)/sizeof(*data)) + 8); /* Estimate required space */
+
+	ret += getNum(type);
+	ret += ":0";
+	for (unsigned int i=0; i<sizeof(data)/sizeof(*data); ++i)
+	{
+		ret += ':';
+		ret += getNum(data[i], 0x10);
+	}
+	ret += ':';
+	return ret;
+}
+
+std::string eServiceReference::toLCNReferenceString(bool trailing) const
+{
+    std::string ret;
+    ret.reserve(24); /* Estimate required space */
+    char buf[24];
+    if(trailing)
+        snprintf(buf, 24, "%X:%X:%X:%X:", data[1], data[2], data[3], data[4]);
+    else
+        snprintf(buf, 24, "%X:%X:%X:%X", data[1], data[2], data[3], data[4]);
+    ret.assign(buf);
 	return ret;
 }
 

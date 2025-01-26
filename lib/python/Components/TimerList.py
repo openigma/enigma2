@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 from Components.GUIComponent import GUIComponent
-from skin import parseFont, parseScale
+from skin import parseFont
 
 from Tools.FuzzyDate import FuzzyTime
 
@@ -121,7 +122,7 @@ class TimerList(GUIComponent):
 
 	def applySkin(self, desktop, parent):
 		def itemHeight(value):
-			self.itemHeight = parseScale(value)
+			self.itemHeight = int(value)
 
 		def setServiceNameFont(value):
 			self.serviceNameFont = parseFont(value, parent.scale)
@@ -133,13 +134,13 @@ class TimerList(GUIComponent):
 			self.font = parseFont(value, parent.scale)
 
 		def rowSplit(value):
-			self.rowSplit = parseScale(value)
+			self.rowSplit = int(value)
 
 		def iconMargin(value):
-			self.iconMargin = parseScale(value)
+			self.iconMargin = int(value)
 
 		def satPosLeft(value):
-			self.satPosLeft = parseScale(value)
+			self.satPosLeft = int(value)
 
 		def backupColor(value):
 			self.backupColor = int(value)

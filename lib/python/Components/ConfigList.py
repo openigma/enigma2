@@ -1,5 +1,6 @@
-from enigma import eListbox, eListboxPythonConfigContent, ePoint, eRCInput, eTimer, gRGB
-from skin import parameters, applySkinFactor, parseColor
+# -*- coding: utf-8 -*-
+from enigma import eListbox, eListboxPythonConfigContent, ePoint, eRCInput, eTimer
+from skin import parameters
 
 from Components.ActionMap import HelpableActionMap, HelpableNumberActionMap
 from Components.config import ConfigBoolean, ConfigElement, ConfigInteger, ConfigMacText, ConfigNothing, ConfigNumber, ConfigSelection, ConfigSequence, ConfigText, ACTIONKEY_0, ACTIONKEY_ASCII, ACTIONKEY_BACKSPACE, ACTIONKEY_DELETE, ACTIONKEY_ERASE, ACTIONKEY_FIRST, ACTIONKEY_LAST, ACTIONKEY_LEFT, ACTIONKEY_NUMBERS, ACTIONKEY_RIGHT, ACTIONKEY_SELECT, ACTIONKEY_TIMEOUT, ACTIONKEY_TOGGLE, configfile
@@ -7,29 +8,27 @@ from Components.GUIComponent import GUIComponent
 from Components.Pixmap import Pixmap
 from Components.Sources.Boolean import Boolean
 from Components.Sources.StaticText import StaticText
+from Components.SystemInfo import getBoxDisplayName
 from Screens.ChoiceBox import ChoiceBox
 from Screens.MessageBox import MessageBox
-from Screens.Standby import QUIT_RESTART, TryQuitMainloop
+from Screens.Standby import QUIT_REBOOT, QUIT_RESTART, TryQuitMainloop
 from Screens.VirtualKeyBoard import VirtualKeyBoard
+from Tools.BoundFunction import boundFunction
 
 
 class ConfigList(GUIComponent):
 	def __init__(self, list, session=None):
 		GUIComponent.__init__(self)
 		self.l = eListboxPythonConfigContent()  # noqa: E741
-		seperation = parameters.get("ConfigListSeperator", applySkinFactor(200))
+		seperation = parameters.get("ConfigListSeperator", 200)
 		self.l.setSeperation(seperation)
-		height, space = parameters.get("ConfigListSlider", applySkinFactor(17, 0))
+		height, space = parameters.get("ConfigListSlider", (17, 0))
 		self.l.setSlider(height, space)
 		self.timer = eTimer()
 		self.list = list
 		self.onSelectionChanged = []
 		self.current = None
 		self.session = session
-		self.sepLineColor = 0xFFFFFF
-		self.sepLineThickness = 1
-		self.l.setSeparatorLineColor(gRGB(self.sepLineColor))
-		self.l.setSepLineThickness(self.sepLineThickness)
 
 	def execBegin(self):
 		rcinput = eRCInput.getInstance()
@@ -66,6 +65,10 @@ class ConfigList(GUIComponent):
 	def setCurrentIndex(self, index):
 		if self.instance is not None:
 			self.instance.moveSelectionTo(index)
+
+	def enableAutoNavigation(self, enabled):
+		if self.instance:
+			self.instance.enableAutoNavigation(enabled)
 
 	def invalidateCurrent(self):
 		self.l.invalidateEntry(self.l.getCurrentSelectionIndex())
@@ -145,26 +148,10 @@ class ConfigList(GUIComponent):
 	def moveBottom(self):
 		if self.instance is not None:
 			self.instance.moveSelection(self.instance.moveEnd)
-	
-	def applySkin(self, desktop, screen):
-		if self.skinAttributes is not None:
-			attribs = []
-			for (attrib, value) in self.skinAttributes:
-				if attrib == "sepLineColor":
-					self.sepLineColor = parseColor(value).argb()
-				elif attrib == "sepLineThickness":
-					self.sepLineThickness = int(value)
-				else:
-					attribs.append((attrib, value))
-			self.skinAttributes = attribs
-		rc = GUIComponent.applySkin(self, desktop, screen)
-		self.l.setSeparatorLineColor(gRGB(self.sepLineColor))
-		self.l.setSepLineThickness(self.sepLineThickness)
-		return rc
 
 
 class ConfigListScreen:
-	def __init__(self, list, session=None, on_change=None, fullUI=False, yellow_button=None, blue_button=None, menu_button=None):
+	def __init__(self, list, session=None, on_change=None, fullUI=False, allowDefault=False, yellow_button=None, blue_button=None, menu_button=None):
 		self.entryChanged = on_change if on_change is not None else lambda: None
 		if fullUI:
 			if "key_red" not in self:
@@ -190,7 +177,14 @@ class ConfigListScreen:
 				"cancel": (self.keyCancel, _("Cancel any changed settings and exit")),
 				"close": (self.closeRecursive, _("Cancel any changed settings and exit all menus")),
 				"save": (self.keySave, _("Save all changed settings and exit"))
-			}, prio=1)
+				}, prio=1)
+			if allowDefault:
+				if "key_yellow" not in self:
+					self["key_yellow"] = StaticText(_("Default"))
+				self["defaultAction"] = HelpableActionMap(self, ["ConfigListActions", "ColorActions"], {
+					"default": (self.keyDefault, _("Reset entries to their default values")),
+					"yellow": (self.keyDefault, _("Reset entries to their default values"))
+				}, prio=1)
 		if "HelpWindow" not in self:
 			self["HelpWindow"] = Pixmap()
 			self["HelpWindow"].hide()
@@ -254,6 +248,17 @@ class ConfigListScreen:
 			self.onExecBegin.append(self.showHelpWindow)
 		if self.hideHelpWindow not in self.onExecEnd:
 			self.onExecEnd.append(self.hideHelpWindow)
+
+	def suspendAllActionMaps(self):
+		self.actionMapStates = []
+		for actionMap in self.actionMaps:
+			self.actionMapStates.append(self[actionMap].getEnabled())
+			self[actionMap].setEnabled(False)
+
+	def resumeAllActionMaps(self):
+		if hasattr(self, "actionMapStates"):
+			for index, actionMap in enumerate(self.actionMaps):
+				self[actionMap].setEnabled(self.actionMapStates[index])
 
 	def setCancelMessage(self, msg):
 		self.cancelMsg = _("Really close without saving settings?") if msg is None else msg
@@ -408,25 +413,29 @@ class ConfigListScreen:
 	def keySave(self):
 		for notifier in self.onSave:
 			notifier()
-		if self.saveAll():
-			self.session.openWithCallback(self.restartConfirm, MessageBox, self.restartMsg, default=True, type=MessageBox.TYPE_YESNO)
+		quitData = self.saveAll()
+		if quitData:
+			self.session.openWithCallback(boundFunction(self.restartConfirm, quitData[0]), MessageBox, quitData[1], default=True, type=MessageBox.TYPE_YESNO)
 		else:
 			self.close()
 
-	def restartConfirm(self, result):
+	def restartConfirm(self, quitValue, result):
 		if result:
-			self.session.open(TryQuitMainloop, retvalue=QUIT_RESTART)
+			self.session.open(TryQuitMainloop, retvalue=quitValue)
 			self.close()
 
 	def saveAll(self):
-		restart = False
+		quitData = ()
 		for item in set(self["config"].list + self.manipulatedItems):
 			if len(item) > 1:
-				if item[0].endswith("*") and item[1].isChanged():
-					restart = True
+				if item[1].isChanged():
+					if item[0].endswith("*"):
+						quitData = (QUIT_RESTART, _("Restart GUI now?"))
+					elif item[0].endswith("#"):
+						quitData = (QUIT_REBOOT, _("Reboot %s %s now?") % getBoxDisplayName())
 				item[1].save()
 		configfile.save()
-		return restart
+		return quitData
 
 	def addSaveNotifier(self, notifier):
 		if callable(notifier):
@@ -457,6 +466,7 @@ class ConfigListScreen:
 	def cancelConfirm(self, result):
 		if not result:
 			return
+
 		for item in set(self["config"].list + self.manipulatedItems):
 			if len(item) > 1:
 				item[1].cancel()

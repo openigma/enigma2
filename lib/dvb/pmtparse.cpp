@@ -379,6 +379,9 @@ int eDVBPMTParser::getProgramInfo(program &program)
 										audio.type = audioStream::atAC4;
 									}
 									break;
+								case 0x06: /* supplementary_audio_descriptor */
+									// TODO
+									break;
 								default:
 									eDebug("[eDVBPMTParser] TODO: Fix parsing for Extension descriptor with tag: %d", d.getExtensionTag());
 									break;
@@ -521,11 +524,11 @@ DEFINE_REF(eDVBPMTParser::eStreamData);
 
 eDVBPMTParser::eStreamData::eStreamData(eDVBPMTParser::program &program)
 {
-	for (const auto i : program.videoStreams)
+	for (const auto &i : program.videoStreams)
 		videoStreams.push_back(i.pid);
-	for (const auto i : program.audioStreams)
+	for (const auto &i : program.audioStreams)
 		audioStreams.push_back(i.pid);
-	for (const auto i : program.subtitleStreams)
+	for (const auto &i : program.subtitleStreams)
 		subtitleStreams.push_back(i.pid);
 	pcrPid = program.pcrPid;
 	pmtPid = program.pmtPid;
@@ -535,7 +538,7 @@ eDVBPMTParser::eStreamData::eStreamData(eDVBPMTParser::program &program)
 	adapterId = program.adapterId;
 	demuxId = program.demuxId;
 	serviceId = program.serviceId;
-	for (const auto it : program.caids)
+	for (const auto &it : program.caids)
 	{
 		caIds.push_back(it.caid);
 		ecmPids.push_back(it.capid);

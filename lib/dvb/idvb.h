@@ -145,6 +145,13 @@ struct eDVBChannelID
 	eTransportStreamID transport_stream_id;
 	eOriginalNetworkID original_network_id;
 
+	std::string toString(void) const
+	{
+		char buf[30];
+		sprintf(buf, "%x:%x:%x", transport_stream_id.get(), original_network_id.get(), dvbnamespace.get());
+		return std::string(buf);
+	}
+
 	bool operator==(const eDVBChannelID &c) const
 	{
 		return dvbnamespace == c.dvbnamespace &&
@@ -250,7 +257,7 @@ public:
 	{
 		chid = eDVBChannelID(getDVBNamespace(), getTransportStreamID(), getOriginalNetworkID());
 	}
-
+	
 	bool getSROriginal(eServiceReferenceDVB &sref) const
 	{
 		std::string s_ref = this->toString();
@@ -311,9 +318,14 @@ public:
 	bool cacheEmpty();
 
 	eDVBService();
-		/* m_service_name_sort is uppercase, with special chars removed, to increase sort performance. */
+	/* m_service_name_sort is uppercase, with special chars removed, to increase sort performance. */
 	std::string m_service_name, m_service_name_sort;
 	std::string m_provider_name;
+	int m_lcn;
+	int getLCN() { return m_lcn; }
+
+	std::string m_service_display_name;
+	std::string m_provider_display_name;
 
 	void genSortName();
 
@@ -330,6 +342,14 @@ public:
 		dxIsScrambledPMT=1024,     // identical to dxNoDVB when used in pmt.cpp and in servicedvbstream.cpp used to record cached pids
 		dxCenterDVBSubs=2048,      // centre DVB subtitles
 		dxNoEIT=4096,              // disable EIT event parsing when using EPG_IMPORT
+		dxNoAITranslation=8192
+	};
+
+	enum
+	{
+		dxIntIsinBouquet=16384,
+		dxIntNewServiceName=32768,
+		dxIntNewProvider=65536,
 	};
 
 	bool usePMT() const { return !(m_flags & dxNoDVB); }
@@ -337,6 +357,7 @@ public:
 	bool isDedicated3D() const { return m_flags & dxIsDedicated3D; }
 	bool doCenterDVBSubs() const { return m_flags & dxCenterDVBSubs; }
 	bool useEIT() const { return !(m_flags & dxNoEIT); }
+	bool noAITranslation() const { return m_flags & dxNoAITranslation; }
 
 	CAID_LIST m_ca;
 
@@ -791,7 +812,13 @@ public:
 			eventSizeChanged = VIDEO_EVENT_SIZE_CHANGED,
 			eventFrameRateChanged = VIDEO_EVENT_FRAME_RATE_CHANGED,
 			eventProgressiveChanged = 16,
+#ifdef DREAMNEXTGEN
+			eventGammaChanged = 17,
+			eventPtsValid = 32,
+			eventVideoDiscontDetected = 64
+#else
 			eventGammaChanged = 17
+#endif
 		} type;
 		unsigned char aspect;
 		unsigned short height;

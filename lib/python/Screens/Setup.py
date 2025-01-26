@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from xml.etree.ElementTree import fromstring
 
 from gettext import dgettext
@@ -8,11 +9,13 @@ from Components.config import ConfigBoolean, ConfigNothing, ConfigSelection, con
 from Components.ConfigList import ConfigListScreen
 from Components.Label import Label
 from Components.Pixmap import Pixmap
-from Components.SystemInfo import BoxInfo
+from Components.SystemInfo import BoxInfo, getBoxDisplayName
 from Components.Sources.StaticText import StaticText
 from Screens.HelpMenu import HelpableScreen
 from Screens.Screen import Screen, ScreenSummary
 from Tools.Directories import SCOPE_PLUGINS, SCOPE_SKIN, fileReadXML, resolveFilename
+
+MODULE_NAME = __name__.split(".")[-1]
 
 domSetups = {}
 setupModTimes = {}
@@ -33,6 +36,12 @@ class Setup(ConfigListScreen, Screen, HelpableScreen):
 			self.setImage(setup, "setup")
 		self.skinName.append("Setup")
 		self.list = []
+		xmlData = setupDom(self.setup, self.plugin)
+		allowDefault = False
+		for setup in xmlData.findall("setup"):
+			if setup.get("key") == self.setup:
+				allowDefault = setup.get("allowDefault", "") in ("1", "allowDefault", "enabled", "on", "true", "yes")
+				break
 		ConfigListScreen.__init__(self, self.list, session=session, on_change=self.changedEntry, fullUI=True, yellow_button=yellow_button, blue_button=blue_button, menu_button=menu_button)
 		self["footnote"] = Label()
 		self["footnote"].hide()
@@ -44,14 +53,8 @@ class Setup(ConfigListScreen, Screen, HelpableScreen):
 			self["config"].onSelectionChanged.append(self.selectionChanged)
 
 	def changedEntry(self):
-		current = self["config"].getCurrent()
-		if current[1].isChanged():
-			self.manipulatedItems.append(current)  # keep track of all manipulated items including ones that have been removed from self["config"].list
-		elif current in self.manipulatedItems:
-			self.manipulatedItems.remove(current)
-		if isinstance(current[1], (ConfigBoolean, ConfigSelection)):
+		if isinstance(self["config"].getCurrent()[1], (ConfigBoolean, ConfigSelection)):
 			self.createSetup()
-		ConfigListScreen.changedEntry(self)  # force summary update immediately, not just on select/deselect
 
 	def createSetup(self, appendItems=None, prependItems=None):
 		if self.setup:
@@ -112,6 +115,11 @@ class Setup(ConfigListScreen, Screen, HelpableScreen):
 		else:
 			itemText = indent + (_(x) if (x := element.get("text")) else "* fix me *")
 			itemDescription = _(x) if (x := element.get("description")) else ""
+		restart = element.get("restart", "").lower()
+		if restart == "gui" and not itemText.endswith("*"):  # Add "*" as restart indicator based on the restart attribute.
+			itemText = f"{itemText}*"
+		elif restart == "system" and not itemText.endswith("#"):  # Add "#" as reboot indicator based on the restart attribute.
+			itemText = f"{itemText}#"
 		item = eval(element.text or "")
 		if item == "":
 			self.list.append((self.formatItemText(itemText),))  # Add the comment line to the config list.
@@ -123,10 +131,10 @@ class Setup(ConfigListScreen, Screen, HelpableScreen):
 			self.graphicSwitchChanged = True
 
 	def formatItemText(self, itemText):
-		return itemText.replace("%s %s", "%s %s" % (BoxInfo.getItem("MachineBrand", ""), BoxInfo.getItem("MachineName", "")))
+		return itemText.replace("%s %s", "%s %s" % getBoxDisplayName())
 
 	def formatItemDescription(self, item, itemDescription):
-		itemDescription = itemDescription.replace("%s %s", "%s %s" % (BoxInfo.getItem("MachineBrand", ""), BoxInfo.getItem("MachineName", "")))
+		itemDescription = itemDescription.replace("%s %s", "%s %s" % getBoxDisplayName())
 		if config.usage.setupShowDefault.value != "no":
 			spacer = "\n" if config.usage.setupShowDefault.value == "newline" else "  "
 			itemDefault = item.toDisplayString(item.default)
@@ -144,14 +152,32 @@ class Setup(ConfigListScreen, Screen, HelpableScreen):
 				if negate:
 					require = require[1:]
 				if require.startswith("config."):
-					item = eval(require)
-					result = bool(item.value and item.value not in ("0", "Disable", "disable", "False", "false", "No", "no", "Off", "off"))
+					try:
+						result = eval(require)
+						result = bool(result.value and str(result.value).lower() not in ("0", "Disable", "disable", "False", "false", "No", "no", "Off", "off"))
+					except Exception:
+						return self.logIncludeElementError(element, "requires", require)
 				else:
 					result = bool(BoxInfo.getItem(require, False))
 				if require and negate == result:  # The item requirements are not met.
 					return False
 		conditional = element.get("conditional")
-		return not conditional or eval(conditional)
+		if conditional:
+			try:
+				if not bool(eval(conditional)):
+					return False
+			except Exception:
+				return self.logIncludeElementError(element, "conditional", conditional)
+		return True
+
+	def logIncludeElementError(self, element, type, token):
+		item = "title" if element.tag == "screen" else "text"
+		text = element.get(item)
+		print("[Setup]")
+		print("[Setup] Error: Tag '%s' with %s of '%s' has a %s '%s' that can't be evaluated!" % (element.tag, item, text, type, token))
+		print("[Setup] NOTE: Ignoring this error may have consequences like unexpected operation or system failures!")
+		print("[Setup]")
+		return False
 
 	def layoutFinished(self):
 		if not self["config"]:
@@ -160,18 +186,24 @@ class Setup(ConfigListScreen, Screen, HelpableScreen):
 	def selectionChanged(self):
 		if self["config"]:
 			self.setFootnote(None)
+			self["description"].setText(self.getCurrentDescription())
+		else:
+			self["description"].setText(_("There are no items currently available for this screen."))
 
 	def setFootnote(self, footnote):
 		if footnote is None:
 			if self.getCurrentEntry().endswith("*"):
-				self["footnote"].text = _("* = Restart Required")
+				self["footnote"].setText(_("* = Restart Required"))
+				self["footnote"].show()
+			elif self.getCurrentEntry().endswith("#"):
+				self["footnote"].setText(_("# = Reboot Required"))
 				self["footnote"].show()
 			else:
-				self["footnote"].text = ""
+				self["footnote"].setText("")
 				self["footnote"].hide()
 		else:
-			self["footnote"].text = footnote
-			self["footnote"].show()
+			self["footnote"].setText(footnote)
+			self["footnote"].setVisible(footnote != "")
 
 	def getFootnote(self):
 		return self["footnote"].text
@@ -195,6 +227,7 @@ class Setup(ConfigListScreen, Screen, HelpableScreen):
 
 
 class SetupSummary(ScreenSummary):
+
 	def __init__(self, session, parent):
 		ScreenSummary.__init__(self, session, parent=parent)
 		self["entry"] = StaticText("")  # DEBUG: Proposed for new summary screens.
@@ -212,6 +245,7 @@ class SetupSummary(ScreenSummary):
 			self.parent.onChangedEntry.append(self.selectionChanged)
 		if self.selectionChanged not in self.parent["config"].onSelectionChanged:
 			self.parent["config"].onSelectionChanged.append(self.selectionChanged)
+			self.selectionChanged()
 		self.selectionChanged()
 
 	def removeWatcher(self):
@@ -284,8 +318,8 @@ def setupDom(setup=None, plugin=None):
 	global domSetups, setupModTimes
 	try:
 		modTime = getmtime(setupFile)
-	except (IOError, OSError) as err:
-		print("[Setup] Error: Unable to get '%s' modified time - Error (%d): %s!" % (setupFile, err.errno, err.strerror))
+	except OSError as err:
+		print("[Setup] Error %d: Unable to get '%s' modified time!  (%s)" % (err.errno, setupFile, err.strerror))
 		if setupFile in domSetups:
 			del domSetups[setupFile]
 		if setupFile in setupModTimes:
@@ -299,28 +333,54 @@ def setupDom(setup=None, plugin=None):
 		del domSetups[setupFile]
 	if setupFile in setupModTimes:
 		del setupModTimes[setupFile]
-	fileDom = fileReadXML(setupFile)
-	if fileDom:
+	fileDom = fileReadXML(setupFile, source=MODULE_NAME)
+	if fileDom is not None:
 		checkItems(fileDom, None)
 		setupFileDom = fileDom
 		domSetups[setupFile] = setupFileDom
 		setupModTimes[setupFile] = modTime
+		for setup in setupFileDom.findall("setup"):
+			key = setup.get("key")
+			if key:  # If there is no key then this element is useless and can be skipped!
+				title = setup.get("title", "")
+				if title == "":
+					print("[Setup] Error: Setup key '%s' title is missing or blank!" % key)
+					title = "** Setup error: '%s' title is missing or blank!" % key
+				# print("[Setup] DEBUG: XML setup load: key='%s', title='%s'." % (key, setup.get("title", "").encode("UTF-8", errors="ignore")))
 	return setupFileDom
+
 
 # Temporary legacy interface.
 # Not used any enigma2 module. Known to be used by the Heinz plugin.
 #
 
-
 def setupdom(setup=None, plugin=None):
 	return setupDom(setup, plugin)
 
+
 # Only used in AudioSelection screen...
 #
-
 
 def getConfigMenuItem(configElement):
 	for item in setupDom().findall("./setup/item/."):
 		if item.text == configElement:
 			return _(item.attrib["text"]), eval(configElement)
 	return "", None
+
+# Temporary legacy interfaces.  Only used in Menu screen.
+#
+def getSetupTitle(id):
+	xmlData = setupDom()
+	for x in xmlData.findall("setup"):
+		if x.get("key") == id:
+			return x.get("title", "")
+	print("[Setup] Error: Unknown setup id '%s'!" % repr(id))
+	return "Unknown setup id '%s'!" % repr(id)
+
+
+def getSetupTitleLevel(setupId):
+	xmlData = setupDom()
+	for x in xmlData.findall("setup"):
+		if x.get("key") == setupId:
+			return int(x.get("level", 0))
+	return 0

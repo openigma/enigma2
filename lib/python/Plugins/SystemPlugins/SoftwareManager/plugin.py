@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import time
 import pickle
@@ -7,7 +8,7 @@ from Screens.MessageBox import MessageBox
 from Screens.Screen import Screen
 from Screens.Standby import TryQuitMainloop
 from Screens.Opkg import Opkg
-from Screens.SoftwareUpdate import UpdatePlugin
+from Screens.SoftwareUpdate import SoftwareUpdate
 from Components.ActionMap import ActionMap, NumberActionMap
 from Components.Input import Input
 from Components.Opkg import OpkgComponent
@@ -24,7 +25,6 @@ from Components.SelectionList import SelectionList
 from Components.PluginComponent import plugins
 from Components.PackageInfo import PackageInfoHandler
 from Components.Language import language
-from Components.AVSwitch import AVSwitch
 from Tools.Directories import resolveFilename, SCOPE_PLUGINS, SCOPE_CURRENT_PLUGIN, SCOPE_CURRENT_SKIN, SCOPE_METADIR
 from Tools.LoadPixmap import LoadPixmap
 from Tools.NumericalTextInput import NumericalTextInput
@@ -32,19 +32,32 @@ from enigma import ePicLoad, eRCInput, getPrevAsciiCode, eEnv
 from twisted.web import client
 from Plugins.SystemPlugins.SoftwareManager.BackupRestore import BackupSelection, RestoreMenu, BackupScreen, RestoreScreen, getBackupPath, getBackupFilename
 from Plugins.SystemPlugins.SoftwareManager.SoftwareTools import iSoftwareTools
+from .ImageBackup import ImageBackup
+from Screens.FlashManager import FlashManager
 
 config.plugins.configurationbackup = ConfigSubsection()
 config.plugins.configurationbackup.backuplocation = ConfigText(default='/media/hdd/', visible_width=50, fixed_size=False)
-config.plugins.configurationbackup.backupdirs = ConfigLocations(default=[eEnv.resolve('${sysconfdir}/enigma2/'), '/etc/network/interfaces', '/etc/wpa_supplicant.conf', '/etc/wpa_supplicant.ath0.conf', '/etc/wpa_supplicant.wlan0.conf', '/etc/default_gw', '/etc/hostname'])
+config.plugins.configurationbackup.backupdirs = ConfigLocations(default=[eEnv.resolve('${sysconfdir}/enigma2/'), '/etc/network/interfaces', '/etc/wpa_supplicant.conf', '/etc/wpa_supplicant.ath0.conf', '/etc/wpa_supplicant.wlan0.conf', '/etc/enigma2/nameserversdns.conf', '/etc/default_gw', '/etc/hostname'])
 
 config.plugins.softwaremanager = ConfigSubsection()
+config.plugins.softwaremanager.overwriteSettingsFiles = ConfigYesNo(default=False)
+config.plugins.softwaremanager.overwriteDriversFiles = ConfigYesNo(default=True)
+config.plugins.softwaremanager.overwriteEmusFiles = ConfigYesNo(default=True)
+config.plugins.softwaremanager.overwritePiconsFiles = ConfigYesNo(default=True)
+config.plugins.softwaremanager.overwriteBootlogoFiles = ConfigYesNo(default=True)
+config.plugins.softwaremanager.overwriteSpinnerFiles = ConfigYesNo(default=True)
+config.plugins.softwaremanager.restoremode = ConfigSelection(default="turbo", choices=[
+		("turbo", _("turbo")),
+		("fast", _("fast")),
+		("slow", _("slow"))
+	])
 config.plugins.softwaremanager.overwriteConfigFiles = ConfigSelection(
 				[
 					("Y", _("Yes, always")),
 					("N", _("No, never")),
 					("ask", _("Always ask"))
 				], "Y")
-config.plugins.softwaremanager.onSetupMenu = ConfigYesNo(default=False)
+config.plugins.softwaremanager.onSetupMenu = ConfigYesNo(default=True)
 config.plugins.softwaremanager.onBlueButton = ConfigYesNo(default=False)
 config.plugins.softwaremanager.epgcache = ConfigYesNo(default=False)
 
@@ -76,12 +89,16 @@ def load_cache(cache_file):
 	return pickle.load(open(cache_file, 'rb'))
 
 
+class ImageBackup(ImageBackup):
+	pass
+
+
 class UpdatePluginMenu(Screen):
 	skin = """
 		<screen name="UpdatePluginMenu" position="center,center" size="610,410" title="Software management" >
-			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphatest="on" />
-			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#9f1313" transparent="1" />
-			<ePixmap pixmap="border_menu_350.png" position="5,50" zPosition="1" size="350,300" transparent="1" alphatest="on" />
+			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphaTest="on" />
+			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#9f1313" transparent="1" />
+			<ePixmap pixmap="border_menu_350.png" position="5,50" zPosition="1" size="350,300" transparent="1" alphaTest="on" />
 			<widget source="menu" render="Listbox" position="15,60" size="330,290" scrollbarMode="showOnDemand">
 				<convert type="TemplatedMultiContent">
 					{"template": [
@@ -92,7 +109,7 @@ class UpdatePluginMenu(Screen):
 					}
 				</convert>
 			</widget>
-			<widget source="menu" render="Listbox" position="360,50" size="240,300" scrollbarMode="showNever" selectionDisabled="1">
+			<widget source="menu" render="Listbox" position="360,50" size="240,300" scrollbarMode="showNever" selection="1">
 				<convert type="TemplatedMultiContent">
 					{"template": [
 							MultiContentEntryText(pos = (2, 2), size = (240, 300), flags = RT_HALIGN_CENTER|RT_VALIGN_CENTER|RT_WRAP, text = 2), # index 2 is the Description,
@@ -102,7 +119,7 @@ class UpdatePluginMenu(Screen):
 					}
 				</convert>
 			</widget>
-			<widget source="status" render="Label" position="5,360" zPosition="10" size="600,50" halign="center" valign="center" font="Regular;22" transparent="1" shadowColor="black" shadowOffset="-1,-1" />
+			<widget source="status" render="Label" position="5,360" zPosition="10" size="600,50" horizontalAlignment="center" verticalAlignment="center" font="Regular;22" transparent="1" shadowColor="black" shadowOffset="-1,-1" />
 		</screen>"""
 
 	def __init__(self, session, args=0):
@@ -120,6 +137,8 @@ class UpdatePluginMenu(Screen):
 			print("building menu entries")
 			self.list.append(("install-extensions", _("Manage extensions"), _("Manage extensions or plugins for your receiver.") + self.oktext, None))
 			self.list.append(("software-update", _("Software update"), _("Online update of your receiver software.") + self.oktext, None))
+			self.list.append(("backup-image", _("Backup Image"), _("Backup your running image to HDD or USB.") + self.oktext + "\n\n" + self.infotext, None))
+			self.list.append(("flash-online", _("Flash Online"), _("Download and flash images on your Box.") + self.oktext + "\n\n" + self.infotext, None))
 			self.list.append(("system-backup", _("Backup system settings"), _("Backup your receiver settings.") + self.oktext + "\n\n" + self.infotext, None))
 			self.list.append(("system-restore", _("Restore system settings"), _("Restore your receiver settings.") + self.oktext, None))
 			self.list.append(("opkg-install", _("Install local extension"), _("Scan for local extensions and install them.") + self.oktext, None))
@@ -242,9 +261,13 @@ class UpdatePluginMenu(Screen):
 			currentEntry = current[0]
 			if self.menu == 0:
 				if (currentEntry == "software-update"):
-					self.session.open(UpdatePlugin, self.skin_path)
+					self.session.open(SoftwareUpdate, self.skin_path)
 				elif (currentEntry == "install-extensions"):
 					self.session.open(PluginManager, self.skin_path)
+				elif (currentEntry == "backup-image"):
+					self.session.open(ImageBackup)
+				elif (currentEntry == "flash-online"):
+					self.session.open(FlashManager)
 				elif (currentEntry == "system-backup"):
 					self.session.openWithCallback(self.backupDone, BackupScreen, runBackup=True)
 				elif (currentEntry == "system-restore"):
@@ -322,17 +345,17 @@ class SoftwareManagerSetup(ConfigListScreen, Screen):
 
 	skin = """
 		<screen name="SoftwareManagerSetup" position="center,center" size="560,440" title="SoftwareManager setup">
-			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphatest="on" />
-			<ePixmap pixmap="buttons/green.png" position="140,0" size="140,40" alphatest="on" />
-			<ePixmap pixmap="buttons/yellow.png" position="280,0" size="140,40" alphatest="on" />
-			<ePixmap pixmap="buttons/blue.png" position="420,0" size="140,40" alphatest="on" />
-			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#9f1313" transparent="1" />
-			<widget source="key_green" render="Label" position="140,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#1f771f" transparent="1" />
-			<widget source="key_yellow" render="Label" position="280,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#a08500" transparent="1" />
-			<widget source="key_blue" render="Label" position="420,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#18188b" transparent="1" />
+			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphaTest="on" />
+			<ePixmap pixmap="buttons/green.png" position="140,0" size="140,40" alphaTest="on" />
+			<ePixmap pixmap="buttons/yellow.png" position="280,0" size="140,40" alphaTest="on" />
+			<ePixmap pixmap="buttons/blue.png" position="420,0" size="140,40" alphaTest="on" />
+			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#9f1313" transparent="1" />
+			<widget source="key_green" render="Label" position="140,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#1f771f" transparent="1" />
+			<widget source="key_yellow" render="Label" position="280,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#a08500" transparent="1" />
+			<widget source="key_blue" render="Label" position="420,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#18188b" transparent="1" />
 			<widget name="config" position="5,50" size="550,350" scrollbarMode="showOnDemand" />
 			<ePixmap pixmap="div-h.png" position="0,400" zPosition="1" size="560,2" />
-			<widget source="introduction" render="Label" position="5,410" size="550,30" zPosition="10" font="Regular;21" halign="center" valign="center" backgroundColor="#25062748" transparent="1" />
+			<widget source="introduction" render="Label" position="5,410" size="550,30" zPosition="10" font="Regular;21" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#25062748" transparent="1" />
 		</screen>"""
 
 	def __init__(self, session, skin_path=None):
@@ -370,6 +393,13 @@ class SoftwareManagerSetup(ConfigListScreen, Screen):
 		self.list.append((_("show softwaremanager in setup menu"), config.plugins.softwaremanager.onSetupMenu))
 		self.list.append((_("show softwaremanager on blue button"), config.plugins.softwaremanager.onBlueButton))
 		self.list.append((_("backup EPG cache"), config.plugins.softwaremanager.epgcache))
+		self.list.append((_("Overwrite Setting Files ?"), config.plugins.softwaremanager.overwriteSettingsFiles))
+		self.list.append((_("Overwrite Driver Files ?"), config.plugins.softwaremanager.overwriteDriversFiles))
+		self.list.append((_("Overwrite Emu Files ?"), config.plugins.softwaremanager.overwriteEmusFiles))
+		self.list.append((_("Overwrite Picon Files ?"), config.plugins.softwaremanager.overwritePiconsFiles))
+		self.list.append((_("Overwrite Bootlogo Files ?"), config.plugins.softwaremanager.overwriteBootlogoFiles))
+		self.list.append((_("Overwrite Spinner Files ?"), config.plugins.softwaremanager.overwriteSpinnerFiles))
+		self.list.append((_("Mode for autorestore"), config.plugins.softwaremanager.restoremode))
 
 		self["config"].list = self.list
 		self["config"].l.setSeperation(400)
@@ -422,15 +452,15 @@ class SoftwareManagerSetup(ConfigListScreen, Screen):
 class SoftwareManagerInfo(Screen):
 	skin = """
 		<screen name="SoftwareManagerInfo" position="center,center" size="560,440" title="SoftwareManager information">
-			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphatest="on" />
-			<ePixmap pixmap="buttons/green.png" position="140,0" size="140,40" alphatest="on" />
-			<ePixmap pixmap="buttons/yellow.png" position="280,0" size="140,40" alphatest="on" />
-			<ePixmap pixmap="buttons/blue.png" position="420,0" size="140,40" alphatest="on" />
-			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#9f1313" transparent="1" />
-			<widget source="key_green" render="Label" position="140,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#1f771f" transparent="1" />
-			<widget source="key_yellow" render="Label" position="280,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#a08500" transparent="1" />
-			<widget source="key_blue" render="Label" position="420,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#18188b" transparent="1" />
-			<widget source="list" render="Listbox" position="5,50" size="550,340" scrollbarMode="showOnDemand" selectionDisabled="0">
+			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphaTest="on" />
+			<ePixmap pixmap="buttons/green.png" position="140,0" size="140,40" alphaTest="on" />
+			<ePixmap pixmap="buttons/yellow.png" position="280,0" size="140,40" alphaTest="on" />
+			<ePixmap pixmap="buttons/blue.png" position="420,0" size="140,40" alphaTest="on" />
+			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#9f1313" transparent="1" />
+			<widget source="key_green" render="Label" position="140,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#1f771f" transparent="1" />
+			<widget source="key_yellow" render="Label" position="280,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#a08500" transparent="1" />
+			<widget source="key_blue" render="Label" position="420,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#18188b" transparent="1" />
+			<widget source="list" render="Listbox" position="5,50" size="550,340" scrollbarMode="showOnDemand" selection="0">
 				<convert type="TemplatedMultiContent">
 					{"template": [
 							MultiContentEntryText(pos = (5, 0), size = (540, 26), font=0, flags = RT_HALIGN_LEFT | RT_HALIGN_CENTER, text = 0), # index 0 is the name
@@ -441,7 +471,7 @@ class SoftwareManagerInfo(Screen):
 				</convert>
 			</widget>
 			<ePixmap pixmap="div-h.png" position="0,400" zPosition="1" size="560,2" />
-			<widget source="introduction" render="Label" position="5,410" size="550,30" zPosition="10" font="Regular;21" halign="center" valign="center" backgroundColor="#25062748" transparent="1" />
+			<widget source="introduction" render="Label" position="5,410" size="550,30" zPosition="10" font="Regular;21" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#25062748" transparent="1" />
 		</screen>"""
 
 	def __init__(self, session, skin_path=None, mode=None):
@@ -482,14 +512,14 @@ class PluginManager(Screen, PackageInfoHandler):
 
 	skin = """
 		<screen name="PluginManager" position="center,center" size="560,440" title="Extensions management" >
-			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphatest="on" />
-			<ePixmap pixmap="buttons/green.png" position="140,0" size="140,40" alphatest="on" />
-			<ePixmap pixmap="buttons/yellow.png" position="280,0" size="140,40" alphatest="on" />
-			<ePixmap pixmap="buttons/blue.png" position="420,0" size="140,40" alphatest="on" />
-			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#9f1313" transparent="1" />
-			<widget source="key_green" render="Label" position="140,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#1f771f" transparent="1" />
-			<widget source="key_yellow" render="Label" position="280,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#a08500" transparent="1" />
-			<widget source="key_blue" render="Label" position="420,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#18188b" transparent="1" />
+			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphaTest="on" />
+			<ePixmap pixmap="buttons/green.png" position="140,0" size="140,40" alphaTest="on" />
+			<ePixmap pixmap="buttons/yellow.png" position="280,0" size="140,40" alphaTest="on" />
+			<ePixmap pixmap="buttons/blue.png" position="420,0" size="140,40" alphaTest="on" />
+			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#9f1313" transparent="1" />
+			<widget source="key_green" render="Label" position="140,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#1f771f" transparent="1" />
+			<widget source="key_yellow" render="Label" position="280,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#a08500" transparent="1" />
+			<widget source="key_blue" render="Label" position="420,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#18188b" transparent="1" />
 			<widget source="list" render="Listbox" position="5,50" size="550,360" scrollbarMode="showOnDemand">
 				<convert type="TemplatedMultiContent">
 				{"templates":
@@ -510,7 +540,7 @@ class PluginManager(Screen, PackageInfoHandler):
 				}
 				</convert>
 			</widget>
-			<widget source="status" render="Label" position="5,410" zPosition="10" size="540,30" halign="center" valign="center" font="Regular;22" transparent="1" shadowColor="black" shadowOffset="-1,-1" />
+			<widget source="status" render="Label" position="5,410" zPosition="10" size="540,30" horizontalAlignment="center" verticalAlignment="center" font="Regular;22" transparent="1" shadowColor="black" shadowOffset="-1,-1" />
 		</screen>"""
 
 	def __init__(self, session, plugin_path=None, args=None):
@@ -922,11 +952,11 @@ class PluginManager(Screen, PackageInfoHandler):
 class PluginManagerInfo(Screen):
 	skin = """
 		<screen name="PluginManagerInfo" position="center,center" size="560,450" title="Plugin manager activity information" >
-			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphatest="on" />
-			<ePixmap pixmap="buttons/green.png" position="140,0" size="140,40" alphatest="on" />
-			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#9f1313" transparent="1" />
-			<widget source="key_green" render="Label" position="140,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#1f771f" transparent="1" />
-			<widget source="list" render="Listbox" position="5,50" size="550,350" scrollbarMode="showOnDemand" selectionDisabled="1">
+			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphaTest="on" />
+			<ePixmap pixmap="buttons/green.png" position="140,0" size="140,40" alphaTest="on" />
+			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#9f1313" transparent="1" />
+			<widget source="key_green" render="Label" position="140,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#1f771f" transparent="1" />
+			<widget source="list" render="Listbox" position="5,50" size="550,350" scrollbarMode="showOnDemand" selection="1">
 				<convert type="TemplatedMultiContent">
 					{"template": [
 							MultiContentEntryText(pos = (50, 0), size = (150, 26), font=0, flags = RT_HALIGN_LEFT, text = 0), # index 0 is the name
@@ -939,8 +969,8 @@ class PluginManagerInfo(Screen):
 					}
 				</convert>
 			</widget>
-			<ePixmap pixmap="div-h.png" position="0,404" zPosition="10" size="560,2" transparent="1" alphatest="on" />
-			<widget source="status" render="Label" position="5,408" zPosition="10" size="550,44" halign="center" valign="center" font="Regular;22" transparent="1" shadowColor="black" shadowOffset="-1,-1" />
+			<ePixmap pixmap="div-h.png" position="0,404" zPosition="10" size="560,2" transparent="1" alphaTest="on" />
+			<widget source="status" render="Label" position="5,408" zPosition="10" size="550,44" horizontalAlignment="center" verticalAlignment="center" font="Regular;22" transparent="1" shadowColor="black" shadowOffset="-1,-1" />
 		</screen>"""
 
 	def __init__(self, session, plugin_path, cmdlist=None):
@@ -1021,9 +1051,9 @@ class PluginManagerInfo(Screen):
 class PluginManagerHelp(Screen):
 	skin = """
 		<screen name="PluginManagerHelp" position="center,center" size="560,450" title="Plugin manager help" >
-			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphatest="on" />
-			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#9f1313" transparent="1" />
-			<widget source="list" render="Listbox" position="5,50" size="550,350" scrollbarMode="showOnDemand" selectionDisabled="1">
+			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphaTest="on" />
+			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#9f1313" transparent="1" />
+			<widget source="list" render="Listbox" position="5,50" size="550,350" scrollbarMode="showOnDemand" selection="1">
 				<convert type="TemplatedMultiContent">
 					{"template": [
 							MultiContentEntryText(pos = (50, 0), size = (540, 26), font=0, flags = RT_HALIGN_LEFT, text = 0), # index 0 is the name
@@ -1036,8 +1066,8 @@ class PluginManagerHelp(Screen):
 					}
 				</convert>
 			</widget>
-			<ePixmap pixmap="div-h.png" position="0,404" zPosition="10" size="560,2" transparent="1" alphatest="on" />
-			<widget source="status" render="Label" position="5,408" zPosition="10" size="550,44" halign="center" valign="center" font="Regular;22" transparent="1" shadowColor="black" shadowOffset="-1,-1" />
+			<ePixmap pixmap="div-h.png" position="0,404" zPosition="10" size="560,2" transparent="1" alphaTest="on" />
+			<widget source="status" render="Label" position="5,408" zPosition="10" size="550,44" horizontalAlignment="center" verticalAlignment="center" font="Regular;22" transparent="1" shadowColor="black" shadowOffset="-1,-1" />
 		</screen>"""
 
 	def __init__(self, session, plugin_path):
@@ -1090,15 +1120,15 @@ class PluginManagerHelp(Screen):
 class PluginDetails(Screen, PackageInfoHandler):
 	skin = """
 		<screen name="PluginDetails" position="center,center" size="600,440" title="Plugin details" >
-			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphatest="on" />
-			<ePixmap pixmap="buttons/green.png" position="140,0" size="140,40" alphatest="on" />
-			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#9f1313" transparent="1" />
-			<widget source="key_green" render="Label" position="140,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#1f771f" transparent="1" />
+			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphaTest="on" />
+			<ePixmap pixmap="buttons/green.png" position="140,0" size="140,40" alphaTest="on" />
+			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#9f1313" transparent="1" />
+			<widget source="key_green" render="Label" position="140,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#1f771f" transparent="1" />
 			<widget source="author" render="Label" position="10,50" size="500,25" zPosition="10" font="Regular;21" transparent="1" />
-			<widget name="statuspic" position="550,40" size="48,48" alphatest="on"/>
-			<widget name="divpic" position="0,80" size="600,2" alphatest="on"/>
-			<widget name="detailtext" position="10,90" size="270,330" zPosition="10" font="Regular;21" transparent="1" halign="left" valign="top"/>
-			<widget name="screenshot" position="290,90" size="300,330" alphatest="on"/>
+			<widget name="statuspic" position="550,40" size="48,48" alphaTest="on"/>
+			<widget name="divpic" position="0,80" size="600,2" alphaTest="on"/>
+			<widget name="detailtext" position="10,90" size="270,330" zPosition="10" font="Regular;21" transparent="1" horizontalAlignment="left" verticalAlignment="top"/>
+			<widget name="screenshot" position="290,90" size="300,330" alphaTest="on"/>
 		</screen>"""
 
 	def __init__(self, session, plugin_path, packagedata=None):
@@ -1218,8 +1248,7 @@ class PluginDetails(Screen, PackageInfoHandler):
 		else:
 			filename = resolveFilename(SCOPE_CURRENT_PLUGIN, "SystemPlugins/SoftwareManager/noprev.png")
 
-		sc = AVSwitch().getFramebufferScale()
-		self.picload.setPara((self["screenshot"].instance.size().width(), self["screenshot"].instance.size().height(), sc[0], sc[1], False, 1, "#00000000"))
+		self.picload.setPara((self["screenshot"].instance.size().width(), self["screenshot"].instance.size().height(), 0, 1, False, 1, "#00000000"))
 		self.picload.startDecode(filename)
 
 		if self.statuspicinstance is not None:
@@ -1292,10 +1321,10 @@ class PluginDetails(Screen, PackageInfoHandler):
 class OPKGMenu(Screen):
 	skin = """
 		<screen name="OPKGMenu" position="center,center" size="560,400" title="Select update source to edit">
-			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphatest="on" />
-			<ePixmap pixmap="buttons/green.png" position="140,0" size="140,40" alphatest="on" />
-			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#9f1313" transparent="1" />
-			<widget source="key_green" render="Label" position="140,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#1f771f" transparent="1" />
+			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphaTest="on" />
+			<ePixmap pixmap="buttons/green.png" position="140,0" size="140,40" alphaTest="on" />
+			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#9f1313" transparent="1" />
+			<widget source="key_green" render="Label" position="140,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#1f771f" transparent="1" />
 			<widget name="filelist" position="5,50" size="550,340" scrollbarMode="showOnDemand" />
 		</screen>"""
 
@@ -1351,10 +1380,10 @@ class OPKGMenu(Screen):
 class OPKGSource(Screen):
 	skin = """
 		<screen name="OPKGSource" position="center,center" size="560,80" title="Edit update source url">
-			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphatest="on" />
-			<ePixmap pixmap="buttons/green.png" position="140,0" size="140,40" alphatest="on" />
-			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#9f1313" transparent="1" />
-			<widget source="key_green" render="Label" position="140,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#1f771f" transparent="1" />
+			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphaTest="on" />
+			<ePixmap pixmap="buttons/green.png" position="140,0" size="140,40" alphaTest="on" />
+			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#9f1313" transparent="1" />
+			<widget source="key_green" render="Label" position="140,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#1f771f" transparent="1" />
 			<widget name="text" position="5,50" size="550,25" font="Regular;20" backgroundColor="background" foregroundColor="#cccccc" />
 		</screen>"""
 
@@ -1440,10 +1469,10 @@ class OPKGSource(Screen):
 class PacketManager(Screen, NumericalTextInput):
 	skin = """
 		<screen name="PacketManager" position="center,center" size="530,420" title="Packet manager" >
-			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphatest="on" />
-			<ePixmap pixmap="buttons/green.png" position="140,0" size="140,40" alphatest="on" />
-			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#9f1313" transparent="1" />
-			<widget source="key_green" render="Label" position="140,0" zPosition="1" size="140,40" font="Regular;20" halign="center" valign="center" backgroundColor="#1f771f" transparent="1" />
+			<ePixmap pixmap="buttons/red.png" position="0,0" size="140,40" alphaTest="on" />
+			<ePixmap pixmap="buttons/green.png" position="140,0" size="140,40" alphaTest="on" />
+			<widget source="key_red" render="Label" position="0,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#9f1313" transparent="1" />
+			<widget source="key_green" render="Label" position="140,0" zPosition="1" size="140,40" font="Regular;20" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#1f771f" transparent="1" />
 			<widget source="list" render="Listbox" position="5,50" size="520,365" scrollbarMode="showOnDemand">
 				<convert type="TemplatedMultiContent">
 					{"template": [
@@ -1765,10 +1794,20 @@ def startSetup(menuid):
 	return []
 
 
+def sessionStart(reason, session): # starts AFTER the Enigma2 booting (For updatecheck)
+	if reason == 0:
+		print('PLUGINSTARTDEBUGLOG - sessionStart executed, reason == 0')
+		import Components.updatecheck
+		Components.updatecheck.AutoCheck(session)
+	if reason == 1:
+		print('PLUGINSTARTDEBUGLOG - sessionStart executed, reason == 1')
+
+
 def Plugins(path, **kwargs):
 	global plugin_path
 	plugin_path = path
 	list = [
+		PluginDescriptor(where = PluginDescriptor.WHERE_SESSIONSTART, fnc = sessionStart), # starts AFTER the Enigma2 booting (For updatecheck)
 		PluginDescriptor(name=_("Software management"), description=_("Manage your receiver's software"), where=PluginDescriptor.WHERE_MENU, needsRestart=False, fnc=startSetup)
 	]
 	if not config.plugins.softwaremanager.onSetupMenu.value and not config.plugins.softwaremanager.onBlueButton.value:

@@ -1,41 +1,39 @@
 <wizard>
 		<step id="start" nextstep="introduction">
-			<text value="Welcome.\n\nThis start wizard will guide you through the basic setup of your receiver.\nPress the Blue or OK button on your remote control to move to the next step."/>
+			<text value="Welcome.\n\nThis start wizard will guide you through the basic setup of your receiver.\nPress the OK button on your remote control to move to the next step."/>
 			<code>
 self.clearSelectedKeys()
 self.selectKey("OK")
-self.selectKey("BLUE")
-self.selectKey("RED")
 			</code>
 		</step>
 		<step id="introduction" >
-			<text value="Use the up/down keys on your remote control to select an option. After that, press Blue or OK."/>
+			<text value="Use the up/down keys on your remote control to select an option. After that, press OK."/>
 			<list>
-				<listentry caption="Use the wizard to set up basic features" step="network"/>
+				<listentry caption="Use the wizard to set up basic features" step="devices" />
 				<listentry caption="Exit the wizard" step="end"/>
 			</list>
 			<code>
 self.clearSelectedKeys()
 self.selectKey("UP")
 self.selectKey("DOWN")
-self.selectKey("BLUE")
-self.selectKey("RED")
-self.selectKey("OK")
 			</code>
+		</step>
+		<step id="devices" nextstep="network">
+			<condition>
+self.condition = self.hasPartitions()
+			</condition>
+			<config screen="DeviceManagerMountPoints" module="DeviceManager" type="standalone"/>
 		</step>
 		<step id="network" >
 			<text value="Please connect your receiver to the internet"/>
 			<list>
 				<listentry caption="Check the internet connection" step="update"/>
-				<listentry caption="Skip internet connection check (disables automatic package installation)" step="timezone"/>
+				<listentry caption="Skip internet connection check (disables automatic package installation)" step="nima"/>
 			</list>
 			<code>
 self.clearSelectedKeys()
 self.selectKey("UP")
 self.selectKey("DOWN")
-self.selectKey("BLUE")
-self.selectKey("RED")
-self.selectKey("OK")
 			</code>
 		</step>
 		<step id="update">
@@ -43,8 +41,6 @@ self.selectKey("OK")
 			<config screen="InstallWizard" module="InstallWizard" args="0" type="ConfigList"/>
 			<code>
 self.clearSelectedKeys()
-self.selectKey("BLUE")
-self.selectKey("RED")
 self.selectKey("OK")
 			</code>
 		</step>
@@ -55,30 +51,12 @@ self.condition = not config.misc.installwizard.opkgloaded.value
 			<text value="Your receiver does not have an internet connection"/>
 			<list>
 				<listentry caption="Check the internet connection again" step="update"/>
-				<listentry caption="Skip internet connection check (disables automatic package installation)" step="timezone"/>
+				<listentry caption="Skip internet connection check (disables automatic package installation)" step="nima"/>
 			</list>
 			<code>
 self.clearSelectedKeys()
 self.selectKey("UP")
 self.selectKey("DOWN")
-self.selectKey("BLUE")
-self.selectKey("RED")
-self.selectKey("OK")
-			</code>
-		</step>
-		<step id="timezone">
-			<text value="Please set your time zone"/>
-			<displaytext value="Please set your time zone"/>
-			<config screen="Setup" module="Setup" args="'timezone'" type="ConfigList"/>
-			<code>
-self.clearSelectedKeys()
-self.selectKey("UP")
-self.selectKey("DOWN")
-self.selectKey("LEFT")
-self.selectKey("RIGHT")
-self.selectKey("BLUE")
-self.selectKey("RED")
-self.selectKey("OK")
 			</code>
 		</step>
 		<step id="nima">
@@ -90,13 +68,8 @@ self.condition = len(nimmanager.nim_slots) > 0 and not nimmanager.nim_slots[0].e
 			<config screen="NimSetup" module="Satconfig" args="0" type="ConfigList"/>
 			<code>
 self.clearSelectedKeys()
-self.selectKey("UP")
-self.selectKey("DOWN")
 self.selectKey("LEFT")
 self.selectKey("RIGHT")
-self.selectKey("BLUE")
-self.selectKey("RED")
-self.selectKey("OK")
 			</code>
 		</step>
 		<step id="nimb">
@@ -108,13 +81,8 @@ self.condition = len(nimmanager.nim_slots) > 1 and not nimmanager.nim_slots[1].e
 			<config screen="NimSetup" module="Satconfig" args="1" type="ConfigList"/>
 			<code>
 self.clearSelectedKeys()
-self.selectKey("UP")
-self.selectKey("DOWN")
 self.selectKey("LEFT")
 self.selectKey("RIGHT")
-self.selectKey("BLUE")
-self.selectKey("RED")
-self.selectKey("OK")
 			</code>
 		</step>
 		<step id="nimc">
@@ -126,13 +94,8 @@ self.condition = len(nimmanager.nim_slots) > 2 and not nimmanager.nim_slots[2].e
 			<config screen="NimSetup" module="Satconfig" args="2" type="ConfigList"/>
 			<code>
 self.clearSelectedKeys()
-self.selectKey("UP")
-self.selectKey("DOWN")
 self.selectKey("LEFT")
 self.selectKey("RIGHT")
-self.selectKey("BLUE")
-self.selectKey("RED")
-self.selectKey("OK")
 			</code>
 		</step>
 		<step id="nimd">
@@ -144,13 +107,8 @@ self.condition = len(nimmanager.nim_slots) > 3 and not nimmanager.nim_slots[3].e
 			<config screen="NimSetup" module="Satconfig" args="3" type="ConfigList"/>
 			<code>
 self.clearSelectedKeys()
-self.selectKey("UP")
-self.selectKey("DOWN")
 self.selectKey("LEFT")
 self.selectKey("RIGHT")
-self.selectKey("BLUE")
-self.selectKey("RED")
-self.selectKey("OK")
 			</code>
 		</step>
 		<step id="nime">
@@ -162,13 +120,8 @@ self.condition = len(nimmanager.nim_slots) > 4 and not nimmanager.nim_slots[4].e
 			<config screen="NimSetup" module="Satconfig" args="4" type="ConfigList"/>
 			<code>
 self.clearSelectedKeys()
-self.selectKey("UP")
-self.selectKey("DOWN")
 self.selectKey("LEFT")
 self.selectKey("RIGHT")
-self.selectKey("BLUE")
-self.selectKey("RED")
-self.selectKey("OK")
 			</code>
 		</step>
 		<step id="nimf">
@@ -180,13 +133,8 @@ self.condition = len(nimmanager.nim_slots) > 5 and not nimmanager.nim_slots[5].e
 			<config screen="NimSetup" module="Satconfig" args="5" type="ConfigList"/>
 			<code>
 self.clearSelectedKeys()
-self.selectKey("UP")
-self.selectKey("DOWN")
 self.selectKey("LEFT")
 self.selectKey("RIGHT")
-self.selectKey("BLUE")
-self.selectKey("RED")
-self.selectKey("OK")
 			</code>
 		</step>
 		<step id="nimg">
@@ -198,13 +146,8 @@ self.condition = len(nimmanager.nim_slots) > 6 and not nimmanager.nim_slots[6].e
 			<config screen="NimSetup" module="Satconfig" args="6" type="ConfigList"/>
 			<code>
 self.clearSelectedKeys()
-self.selectKey("UP")
-self.selectKey("DOWN")
 self.selectKey("LEFT")
 self.selectKey("RIGHT")
-self.selectKey("BLUE")
-self.selectKey("RED")
-self.selectKey("OK")
 			</code>
 		</step>
 		<step id="nimh">
@@ -216,13 +159,8 @@ self.condition = len(nimmanager.nim_slots) > 7 and not nimmanager.nim_slots[7].e
 			<config screen="NimSetup" module="Satconfig" args="7" type="ConfigList"/>
 			<code>
 self.clearSelectedKeys()
-self.selectKey("UP")
-self.selectKey("DOWN")
 self.selectKey("LEFT")
 self.selectKey("RIGHT")
-self.selectKey("BLUE")
-self.selectKey("RED")
-self.selectKey("OK")
 			</code>
 		</step>
 		<step id="nimi">
@@ -234,13 +172,8 @@ self.condition = len(nimmanager.nim_slots) > 8 and not nimmanager.nim_slots[8].e
 			<config screen="NimSetup" module="Satconfig" args="8" type="ConfigList"/>
 			<code>
 self.clearSelectedKeys()
-self.selectKey("UP")
-self.selectKey("DOWN")
 self.selectKey("LEFT")
 self.selectKey("RIGHT")
-self.selectKey("BLUE")
-self.selectKey("RED")
-self.selectKey("OK")
 			</code>
 		</step>
 		<step id="nimj">
@@ -252,13 +185,8 @@ self.condition = len(nimmanager.nim_slots) > 9 and not nimmanager.nim_slots[9].e
 			<config screen="NimSetup" module="Satconfig" args="9" type="ConfigList"/>
 			<code>
 self.clearSelectedKeys()
-self.selectKey("UP")
-self.selectKey("DOWN")
 self.selectKey("LEFT")
 self.selectKey("RIGHT")
-self.selectKey("BLUE")
-self.selectKey("RED")
-self.selectKey("OK")
 			</code>
 		</step>
 		<step id="nimq">
@@ -270,13 +198,8 @@ self.condition = len(nimmanager.nim_slots) > 16 and not nimmanager.nim_slots[16]
 			<config screen="NimSetup" module="Satconfig" args="16" type="ConfigList"/>
 			<code>
 self.clearSelectedKeys()
-self.selectKey("UP")
-self.selectKey("DOWN")
 self.selectKey("LEFT")
 self.selectKey("RIGHT")
-self.selectKey("BLUE")
-self.selectKey("RED")
-self.selectKey("OK")
 			</code>
 		</step>
 		<step id="nimr">
@@ -288,13 +211,8 @@ self.condition = len(nimmanager.nim_slots) > 17 and not nimmanager.nim_slots[17]
 			<config screen="NimSetup" module="Satconfig" args="17" type="ConfigList"/>
 			<code>
 self.clearSelectedKeys()
-self.selectKey("UP")
-self.selectKey("DOWN")
 self.selectKey("LEFT")
 self.selectKey("RIGHT")
-self.selectKey("BLUE")
-self.selectKey("RED")
-self.selectKey("OK")
 			</code>
 		</step>
 		<step id="channels">
@@ -306,13 +224,8 @@ self.condition = nimmanager.somethingConnected() and config.misc.installwizard.h
 			<config screen="InstallWizard" module="InstallWizard" args="1" type="ConfigList"/>
 			<code>
 self.clearSelectedKeys()
-self.selectKey("UP")
-self.selectKey("DOWN")
 self.selectKey("LEFT")
 self.selectKey("RIGHT")
-self.selectKey("BLUE")
-self.selectKey("RED")
-self.selectKey("OK")
 			</code>
 		</step>
 		<step id="fallbacktuner">
@@ -324,13 +237,8 @@ self.condition = not nimmanager.somethingConnected() and config.misc.installwiza
 			<config screen="SetupFallbacktuner" module="SetupFallbacktuner" type="ConfigList"/>
 			<code>
 self.clearSelectedKeys()
-self.selectKey("UP")
-self.selectKey("DOWN")
 self.selectKey("LEFT")
 self.selectKey("RIGHT")
-self.selectKey("BLUE")
-self.selectKey("RED")
-self.selectKey("OK")
 			</code>
 		</step>
 		<step id="doscan">
@@ -342,12 +250,6 @@ self.condition = nimmanager.somethingConnected()
 			<config screen="InstallWizard" module="InstallWizard" args="3" type="ConfigList"/>
 			<code>
 self.clearSelectedKeys()
-self.selectKey("UP")
-self.selectKey("DOWN")
-self.selectKey("LEFT")
-self.selectKey("RIGHT")
-self.selectKey("BLUE")
-self.selectKey("RED")
 self.selectKey("OK")
 			</code>
 		</step>
@@ -359,12 +261,6 @@ self.condition = config.misc.installwizard.hasnetwork.value and config.misc.inst
 			<config screen="InstallWizard" module="InstallWizard" args="2" type="ConfigList"/>
 			<code>
 self.clearSelectedKeys()
-self.selectKey("UP")
-self.selectKey("DOWN")
-self.selectKey("LEFT")
-self.selectKey("RIGHT")
-self.selectKey("BLUE")
-self.selectKey("RED")
 self.selectKey("OK")
 			</code>
 		</step>
@@ -373,21 +269,13 @@ self.selectKey("OK")
 			<config screen="Setup" module="Setup" args="wizardsetup" type="ConfigList"/>
 			<code>
 self.clearSelectedKeys()
-self.selectKey("UP")
-self.selectKey("DOWN")
-self.selectKey("LEFT")
-self.selectKey("RIGHT")
-self.selectKey("BLUE")
-self.selectKey("RED")
 self.selectKey("OK")
 			</code>
 		</step>
 		<step id="end" laststep="true">
-			<text value="Thank you for using the wizard. Your receiver is now ready for use.\nPress Blue or OK to start using your receiver."/>
+			<text value="Thank you for using the wizard. Your receiver is now ready for use.\nPress OK to start using your receiver."/>
 			<code>
 self.clearSelectedKeys()
-self.selectKey("BLUE")
-self.selectKey("RED")
 self.selectKey("OK")
 			</code>
 		</step>

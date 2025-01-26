@@ -10,17 +10,18 @@
 #include <lib/gdi/fb.h>
 #include <byteswap.h>
 #include <unordered_map>
+#include <vector>
 
 struct gRGB
 {
 	union {
 #if BYTE_ORDER == LITTLE_ENDIAN
 		struct {
-			uint8_t b, g, r, a;
+			unsigned char b, g, r, a;
 		};
 #else
 		struct {
-			uint8_t a, r, g, b;
+			unsigned char a, r, g, b;
 		};
 #endif
 		uint32_t value;
@@ -28,7 +29,7 @@ struct gRGB
 	gRGB(int r, int g, int b, int a=0): b(b), g(g), r(r), a(a)
 	{
 	}
-	gRGB(unsigned int val): value(val)
+	gRGB(uint32_t val): value(val)
 	{
 	}
 	gRGB(const gRGB& other): value(other.value)
@@ -36,7 +37,8 @@ struct gRGB
 	}
 	gRGB(const char *colorstring)
 	{
-		unsigned int val = 0;
+		uint32_t val = 0;
+
 		if (colorstring)
 		{
 			for (int i = 0; i < 8; i++)
@@ -60,21 +62,20 @@ struct gRGB
 	{
 	}
 
-	unsigned int argb() const
+	uint32_t argb() const
 	{
 		return value;
 	}
 
-	void set(unsigned int val)
+	void set(uint32_t val)
 	{
 		value = val;
 	}
 
-	void operator=(unsigned int val)
+	void operator=(uint32_t val)
 	{
 		value = val;
 	}
-	gRGB& operator=(const gRGB&) = default;
 	bool operator < (const gRGB &c) const
 	{
 		if (b < c.b)
@@ -101,9 +102,9 @@ struct gRGB
 	{
 		return c.value != value;
 	}
-	operator std::string () const
+	operator const std::string () const
 	{
-		unsigned int val = value;
+		uint32_t val = value;
 		std::string escapecolor = "\\c";
 		escapecolor.resize(10);
 		for (int i = 9; i >= 2; i--)
@@ -144,7 +145,8 @@ struct gPalette
 {
 	int start, colors;
 	gRGB *data;
-	unsigned long data_phys;
+	uint32_t data_phys;
+
 	gColor findColor(const gRGB rgb) const;
 	gPalette():	start(0), colors(0), data(0), data_phys(0) {}
 };
@@ -238,12 +240,12 @@ private:
 	void fill(const gRegion &clip, const gColor &color);
 	void fill(const gRegion &clip, const gRGB &color);
 
-	void blit(const gPixmap &src, const eRect &pos, const gRegion &clip, int cornerRadius, int edges, int flags=0);
+	void blit(const gPixmap &src, const eRect &pos, const gRegion &clip, int cornerRadius, uint8_t edges, int flags=0);
 
-    void blitRounded32Bit(const gPixmap &src, const eRect &pos, const eRect &clip, int cornerRadius, int edges, int flag);
-    void blitRounded32BitScaled(const gPixmap &src, const eRect &pos, const eRect &clip, int cornerRadius, int edges, int flag);
-    void blitRounded8Bit(const gPixmap &src, const eRect &pos, const eRect &clip, int cornerRadius, int edges, int flag);
-    void blitRounded8BitScaled(const gPixmap &src, const eRect &pos, const eRect &clip, int cornerRadius, int edges, int flag);
+    void blitRounded32Bit(const gPixmap &src, const eRect &pos, const eRect &clip, int cornerRadius, uint8_t edges, int flag);
+    void blitRounded32BitScaled(const gPixmap &src, const eRect &pos, const eRect &clip, int cornerRadius, uint8_t edges, int flag);
+    void blitRounded8Bit(const gPixmap &src, const eRect &pos, const eRect &clip, int cornerRadius, uint8_t edges, int flag);
+    void blitRounded8BitScaled(const gPixmap &src, const eRect &pos, const eRect &clip, int cornerRadius, uint8_t edges, int flag);
 
 	void mergePalette(const gPixmap &target);
 	void line(const gRegion &clip, ePoint start, ePoint end, gColor color);
@@ -251,9 +253,9 @@ private:
 	void line(const gRegion &clip, ePoint start, ePoint end, unsigned int color);
 
 	void drawRectangle(const gRegion &region, const eRect &area, const gRGB &backgroundColor, const gRGB &borderColor, int borderWidth, const std::vector<gRGB> &gradientColors, uint8_t direction, int radius, uint8_t edges, bool alphablend, int gradientFullSize = 0);
+
 };
 SWIG_TEMPLATE_TYPEDEF(ePtr<gPixmap>, gPixmapPtr);
-
 
 #ifndef SWIG
 struct CornerData

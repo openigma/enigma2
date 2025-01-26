@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from enigma import eLabel
 
 # Calls onto the static function in eLabel. This avoids causing an invalidate
@@ -5,5 +6,5 @@ from enigma import eLabel
 # particularly in a complex screen like the graph EPG
 
 
-def getTextBoundarySize(instance, font, targetSize, text):
-	return eLabel.calculateTextSize(font, text, targetSize)
+def getTextBoundarySize(instance, font, targetSize, text, nowrap=False):
+	return eLabel.calculateTextSize(font, text, targetSize, nowrap)

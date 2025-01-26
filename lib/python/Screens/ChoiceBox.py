@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from Screens.Screen import Screen
 from Screens.MessageBox import MessageBox
 from Components.ActionMap import NumberActionMap
@@ -8,14 +9,15 @@ from Components.Sources.StaticText import StaticText
 from enigma import ePoint, eSize, getDesktop
 
 config.misc.pluginlist = ConfigSubsection()
-config.misc.pluginlist.eventinfo_order = ConfigText(default="")
-config.misc.pluginlist.extension_order = ConfigText(default="")
+config.misc.pluginlist.eventinfoOrder = ConfigText(default="[]")
+config.misc.pluginlist.extensionOrder = ConfigText(default="[]")
+config.misc.pluginlist.fcBookmarksOrder = ConfigText(default=f"['{_("Storage Devices")}']")
 
 
 class ChoiceBox(Screen):
 	def __init__(self, session, title="", list=[], keys=None, selection=0, skin_name=[], reorderConfig="", windowTitle=None):
 		Screen.__init__(self, session)
-
+		self.setTitle(windowTitle if windowTitle else _("Choice Box"))
 		if isinstance(skin_name, str):
 			skin_name = [skin_name]
 		self.skinName = skin_name + ["ChoiceBox"]
@@ -28,7 +30,7 @@ class ChoiceBox(Screen):
 			self["key_menu"] = StaticText(_("MENU"))
 			self["key_previous"] = StaticText(_("PREVIOUS"))
 			self["key_next"] = StaticText(_("NEXT"))
-			
+
 		self.list = []
 		self.summarylist = []
 		self.keymap = {}
@@ -231,7 +233,7 @@ class ChoiceBox(Screen):
 	def setDefaultChoiceList(self):
 		if self.reorder_config:
 			if self.list and self.config_type.value != "":
-				self.session.openWithCallback(self.setDefaultChoiceListCallback, MessageBox, _("Sort list to default and exit?"), MessageBox.TYPE_YESNO)
+				self.session.openWithCallback(self.setDefaultChoiceListCallback, MessageBox, _("Sort list to default and exit?"), MessageBox.TYPE_YESNO, windowTitle=self.getTitle())
 		elif "menu" in self.keymap:
 			self.goKey("menu")
 		else:

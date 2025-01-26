@@ -961,7 +961,7 @@ static void nsvg__addShape(NSVGparser* p)
 		return;
 
 	shape = static_cast<NSVGshape*>(malloc(sizeof(NSVGshape)));
-	if (shape == nullptr) 
+	if (shape == nullptr)
 		return;
 	memset(shape, 0, sizeof(NSVGshape));
 

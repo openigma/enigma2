@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from Components.ActionMap import ActionMap
 from Components.config import config, ConfigSubsection, ConfigSelection
 from Components.ConfigList import ConfigListScreen
@@ -13,7 +14,7 @@ import Screens.Standby
 
 
 class JobView(InfoBarNotifications, ConfigListScreen, Screen):
-	def __init__(self, session, job, parent=None, cancelable=True, backgroundable=True, afterEventChangeable=True):
+	def __init__(self, session, job, parent=None, cancelable=True, backgroundable=True, afterEventChangeable=True, afterEvent="nothing"):
 		Screen.__init__(self, session, parent)
 		InfoBarNotifications.__init__(self)
 		ConfigListScreen.__init__(self, [])
@@ -61,6 +62,8 @@ class JobView(InfoBarNotifications, ConfigListScreen, Screen):
 			shutdownString = _("go to deep standby")
 		else:
 			shutdownString = _("shut down")
+		if afterEvent:
+			self.job.afterEvent = afterEvent
 		self.settings.afterEvent = ConfigSelection(choices=[("nothing", _("do nothing")), ("close", _("Close")), ("standby", _("go to standby")), ("deepstandby", shutdownString)], default=self.job.afterEvent or "nothing")
 		self.job.afterEvent = self.settings.afterEvent.getValue()
 		self.afterEventChangeable = afterEventChangeable
@@ -164,3 +167,6 @@ class JobView(InfoBarNotifications, ConfigListScreen, Screen):
 	def sendTryQuitMainloopNotification(self, answer):
 		if answer:
 			AddNotification(Screens.Standby.TryQuitMainloop, 1)
+
+class TaskView(JobView):
+	pass

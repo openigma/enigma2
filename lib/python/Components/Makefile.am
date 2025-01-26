@@ -7,7 +7,7 @@ install_PYTHON = \
 	Button.py HTMLComponent.py ProgressBar.py TimerList.py config.py        \
 	ServiceList.py VariableText.py                                          \
 	ConfigList.py VariableValue.py                                          \
-	Label.py ServiceScan.py VolumeBar.py VolumeControl.py                   \
+	Label.py VolumeBar.py VolumeControl.py Storage.py                       \
 	GUIComponent.py MenuList.py __init__.py MovieList.py                    \
 	InputDevice.py ServicePosition.py SetupDevices.py Harddisk.py           \
 	AVSwitch.py Network.py RFmod.py DiskInfo.py NimManager.py Lcd.py        \
@@ -20,5 +20,6 @@ install_PYTHON = \
 	Opkg.py SelectionList.py Scanner.py SystemInfo.py PackageInfo.py \
 	Task.py Console.py ResourceManager.py TuneTest.py \
 	Keyboard.py Sensors.py FanControl.py HdmiCec.py RcModel.py \
-	Netlink.py InputHotplug.py \
-	ImportChannels.py  PowerOffTimer.py
+	Netlink.py InputHotplug.py updatecheck.py \
+	ImportChannels.py StackTrace.py EpgLoadSave.py \
+	HdmiRecord.py PowerOffTimer.py NetworkTime.py FrontPanelLed.py International.py

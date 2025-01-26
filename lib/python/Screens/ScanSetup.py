@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from Screens.Screen import Screen
 from Screens.ServiceScan import ServiceScan
 from Components.config import config, ConfigSubsection, ConfigSelection, ConfigYesNo, ConfigInteger, ConfigSlider, ConfigEnableDisable, ConfigFloat
@@ -7,7 +8,6 @@ from Components.SystemInfo import BoxInfo
 from Components.ConfigList import ConfigListScreen
 from Components.NimManager import nimmanager, getConfigSatlist
 from Components.Label import Label
-from Tools.HardwareInfo import HardwareInfo
 from Tools.Transponder import getChannelNumber, supportedChannels, channel2frequency
 from Tools.Directories import fileExists
 from Screens.InfoBar import InfoBar
@@ -290,7 +290,7 @@ class CableTransponderSearchSupport:
 		except:
 			# older API
 			if nim_idx < 2:
-				if HardwareInfo().get_device_name() == "dm500hd":
+				if BoxInfo.getItem("model") == "dm500hd":
 					bus = 2
 				else:
 					bus = nim_idx
@@ -608,6 +608,7 @@ class ScanSetup(ConfigListScreen, Screen, CableTransponderSearchSupport, Terrest
 		Screen.__init__(self, session)
 		Screen.setTitle(self, _("Manual Scan"))
 		self.skinName = ["ScanSetup", "Setup"]
+
 		self.finished_cb = None
 		self.updateSatList()
 		self.service = session.nav.getCurrentService()
@@ -1694,6 +1695,7 @@ class ScanSimple(ConfigListScreen, Screen, CableTransponderSearchSupport, Terres
 		Screen.__init__(self, session)
 		Screen.setTitle(self, _("Automatic Scan"))
 		self.skinName = ["ScanSimple", "Setup"]
+
 		self["key_green"] = StaticText(_("Scan"))
 
 		self["actions"] = ActionMap(["SetupActions", "MenuActions", "ColorActions"],

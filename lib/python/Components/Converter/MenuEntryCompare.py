@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #
 # This is a legacy converter. No new skins should be using it
 # but it has left in place for old skins.

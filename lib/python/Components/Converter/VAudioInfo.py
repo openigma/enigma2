@@ -1,5 +1,4 @@
-# copied from OpenViX
-
+# -*- coding: utf-8 -*-
 from enigma import iPlayableService
 
 from Components.Converter.Converter import Converter

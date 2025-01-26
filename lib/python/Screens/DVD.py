@@ -1,9 +1,9 @@
+# -*- coding: utf-8 -*-
 import os
 from enigma import eTimer, iPlayableService, iServiceInformation, eServiceReference, iServiceKeys, getDesktop
 from Screens.Screen import Screen
 from Screens.MessageBox import MessageBox
 from Screens.ChoiceBox import ChoiceBox
-from Screens.HelpMenu import HelpableScreen
 from Screens.InfoBarGenerics import InfoBarSeek, InfoBarPVRState, InfoBarCueSheetSupport, InfoBarShowHide, InfoBarNotifications, InfoBarAudioSelection, InfoBarSubtitleSupport
 from Components.ActionMap import ActionMap, NumberActionMap, HelpableActionMap
 from Components.Label import Label
@@ -35,6 +35,8 @@ class DVDSummary(Screen):
 
 
 class DVDOverlay(Screen):
+	noSkinReload = True
+
 	def __init__(self, session, args=None, height=None):
 		desktop_size = getDesktop(0).size()
 		w = desktop_size.width()
@@ -49,7 +51,7 @@ class ChapterZap(Screen):
 	skin = """
 	<screen name="ChapterZap" position="235,255" size="250,60" title="Chapter" >
 		<widget name="chapter" position="35,15" size="110,25" font="Regular;23" />
-		<widget name="number" position="145,15" size="80,25" halign="right" font="Regular;23" />
+		<widget name="number" position="145,15" size="80,25" horizontalAlignment="right" font="Regular;23" />
 	</screen>"""
 
 	def quit(self):
@@ -96,38 +98,37 @@ class ChapterZap(Screen):
 		self.Timer.start(3000, True)
 
 
-class DVDPlayer(Screen, InfoBarBase, InfoBarNotifications, InfoBarSeek, InfoBarPVRState, InfoBarShowHide, HelpableScreen, InfoBarCueSheetSupport, InfoBarAudioSelection, InfoBarSubtitleSupport):
-	ALLOW_SUSPEND = Screen.SUSPEND_PAUSES
+class DVDPlayer(Screen, InfoBarBase, InfoBarNotifications, InfoBarSeek, InfoBarPVRState, InfoBarShowHide, InfoBarCueSheetSupport, InfoBarAudioSelection, InfoBarSubtitleSupport):
 	ENABLE_RESUME_SUPPORT = True
 
 	skin = """
 	<screen name="DVDPlayer" flags="wfNoBorder" position="0,380" size="720,160" title="Info bar" backgroundColor="transparent" >
 		<!-- Background -->
-		<ePixmap position="0,0" zPosition="-2" size="720,160" pixmap="info-bg_mp.png" alphatest="off" />
-		<ePixmap position="29,40" zPosition="0" size="665,104" pixmap="screws_mp.png" alphatest="on" transparent="1" />
+		<ePixmap position="0,0" zPosition="-2" size="720,160" pixmap="info-bg_mp.png" alphaTest="off" />
+		<ePixmap position="29,40" zPosition="0" size="665,104" pixmap="screws_mp.png" alphaTest="on" transparent="1" />
 		<!-- colorbuttons -->
-		<ePixmap position="48,70" zPosition="0" size="108,13" pixmap="icons/mp_buttons.png" alphatest="on" />
+		<ePixmap position="48,70" zPosition="0" size="108,13" pixmap="icons/mp_buttons.png" alphaTest="on" />
 		<!-- Servicename -->
-		<ePixmap pixmap="icons/icon_event.png" position="207,78" zPosition="1" size="15,10" alphatest="on" />
+		<ePixmap pixmap="icons/icon_event.png" position="207,78" zPosition="1" size="15,10" alphaTest="on" />
 		<widget source="session.CurrentService" render="Label" position="230,73" size="300,22" font="Regular;20" backgroundColor="#263c59" shadowColor="#1d354c" shadowOffset="-1,-1" transparent="1" noWrap="1">
 			<convert type="ServiceName">Name</convert>
 		</widget>
 		<!-- Chapter info -->
 		<widget name="chapterLabel" position="230,96" size="360,22" font="Regular;20" foregroundColor="#c3c3c9" backgroundColor="#263c59" transparent="1" />
 		<!-- Audio track info -->
-		<ePixmap pixmap="icons/icon_dolby.png" position="540,60" zPosition="1" size="26,16" alphatest="on"/>
+		<ePixmap pixmap="icons/icon_dolby.png" position="540,60" zPosition="1" size="26,16" alphaTest="on"/>
 		<widget name="audioLabel" position="570,60" size="130,22" font="Regular;18" backgroundColor="#263c59" shadowColor="#1d354c" shadowOffset="-1,-1" transparent="1" />
 		<!-- Subtitle track info -->
-		<widget source="session.CurrentService" render="Pixmap" pixmap="icons/icon_txt.png" position="540,83" zPosition="1" size="26,16" alphatest="on" >
+		<widget source="session.CurrentService" render="Pixmap" pixmap="icons/icon_txt.png" position="540,83" zPosition="1" size="26,16" alphaTest="on" >
 			<convert type="ServiceInfo">HasTelext</convert>
 			<convert type="ConditionalShowHide" />
 		</widget>
 		<widget name="subtitleLabel" position="570,83" size="130,22" font="Regular;18" backgroundColor="#263c59" shadowColor="#1d354c" shadowOffset="-1,-1" transparent="1" />
 		<!-- Angle info -->
-		<widget name="anglePix" pixmap="icons/icon_view.png" position="540,106" size="26,16" alphatest="on" />
+		<widget name="anglePix" pixmap="icons/icon_view.png" position="540,106" size="26,16" alphaTest="on" />
 		<widget name="angleLabel" position="570,106" size="130,22" font="Regular;18" backgroundColor="#263c59" shadowColor="#1d354c" shadowOffset="-1,-1" transparent="1" />
 		<!-- Elapsed time -->
-		<widget source="session.CurrentService" render="Label" position="205,129" size="100,20" font="Regular;18" halign="center" valign="center" backgroundColor="#06224f" shadowColor="#1d354c" shadowOffset="-1,-1" transparent="1" >
+		<widget source="session.CurrentService" render="Label" position="205,129" size="100,20" font="Regular;18" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#06224f" shadowColor="#1d354c" shadowOffset="-1,-1" transparent="1" >
 			<convert type="ServicePosition">Position,ShowHours</convert>
 		</widget>
 		<!-- Progressbar (movie position)-->
@@ -135,20 +136,19 @@ class DVDPlayer(Screen, InfoBarBase, InfoBarNotifications, InfoBarSeek, InfoBarP
 			<convert type="ServicePosition">Gauge</convert>
 		</widget>
 		<!-- Remaining time -->
-		<widget source="session.CurrentService" render="Label" position="576,129" size="100,20" font="Regular;18" halign="center" valign="center" backgroundColor="#06224f" shadowColor="#1d354c" shadowOffset="-1,-1" transparent="1" >
+		<widget source="session.CurrentService" render="Label" position="576,129" size="100,20" font="Regular;18" horizontalAlignment="center" verticalAlignment="center" backgroundColor="#06224f" shadowColor="#1d354c" shadowOffset="-1,-1" transparent="1" >
 			<convert type="ServicePosition">Remaining,Negate,ShowHours</convert>
 		</widget>
 	</screen>"""
 
 	def __init__(self, session, dvd_device=None, dvd_filelist=[], args=None):
-		Screen.__init__(self, session)
+		Screen.__init__(self, session, enableHelp=True)
 		InfoBarBase.__init__(self)
 		InfoBarNotifications.__init__(self)
 		InfoBarCueSheetSupport.__init__(self, actionmap="MediaPlayerCueSheetActions")
 		InfoBarShowHide.__init__(self)
 		InfoBarAudioSelection.__init__(self)
 		InfoBarSubtitleSupport.__init__(self)
-		HelpableScreen.__init__(self)
 		self.save_infobar_seek_config()
 		self.change_infobar_seek_config()
 		InfoBarSeek.__init__(self)
@@ -170,6 +170,8 @@ class DVDPlayer(Screen, InfoBarBase, InfoBarNotifications, InfoBarSeek, InfoBarP
 		self.currentChapter = 0
 		self.totalTitles = 0
 		self.currentTitle = 0
+		self.firstRun = True
+		self.firstRunTimer = eTimer()
 
 		self.__event_tracker = ServiceEventTracker(screen=self, eventmap={
 				iPlayableService.evEnd: self.__serviceStopped,
@@ -367,6 +369,11 @@ class DVDPlayer(Screen, InfoBarBase, InfoBarNotifications, InfoBarSeek, InfoBarP
 		print("[DVD] timeUpdated")
 
 	def __statePlay(self):
+		if self.firstRun:
+			self.firstRun = False
+			self.firstRunTimer.callback.append(self.enterDVDMenu)
+			self.firstRunTimer.start(2000, True)
+			print("[DVD] force MENU after 2 sec")
 		print("[DVD] statePlay")
 
 	def __statePause(self):

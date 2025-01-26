@@ -7,6 +7,7 @@
 #include <map>
 #include <lib/base/eerror.h>
 #include <lib/base/encoding.h>
+#include <lib/base/esimpleconfig.h>
 #include <lib/base/estring.h>
 #include "freesatv2.h"
 #include "big5.h"
@@ -30,6 +31,9 @@ std::string buildShortName( const std::string &str )
 
 void undoAbbreviation(std::string &str1, std::string &str2)
 {
+	if (!eSimpleConfig::getBool("config.epg.joinAbbreviatedEventNames", true))
+		return;
+
 	std::string s1 = str1;
 	std::string s2 = str2;
 
@@ -116,6 +120,34 @@ void undoAbbreviation(std::string &str1, std::string &str2)
 
 	str1 = s1;
 	str2 = s2;
+}
+
+void removePrefixesFromEventName(std::string &name, std::string &description)
+{
+	int eventNamePrefixMode = eSimpleConfig::getInt("config.epg.eventNamePrefixMode", 0);
+	if (eventNamePrefixMode == 0)
+		return;
+
+	const char* titlePrefixes = eSimpleConfig::getString("config.epg.eventNamePrefixes", "").c_str();
+	size_t prefixLength;
+	while ((prefixLength = strcspn(titlePrefixes, "|")))
+	{
+		if (name.size() >= prefixLength && name.find(titlePrefixes, 0, prefixLength) == 0)
+		{
+			// remove the unwanted prefix
+			name.erase(0, prefixLength);
+			// and any subsequent spaces
+			name.erase(0, name.find_first_not_of(" "));
+			if (eventNamePrefixMode == 2)
+			{
+				description += " [";
+				description += std::string(titlePrefixes, prefixLength);
+				description += "]";
+			}
+			break;
+		}
+		titlePrefixes += prefixLength + 1;
+	}
 }
 
 std::string getNum(int val, int sys)
@@ -931,14 +963,14 @@ unsigned int truncateUTF8(std::string &s, unsigned int newsize)
 
 	if (len > idx){
 		while (idx > 0) {
-			if (!(s.at(idx) & 0x80) || (s.at(idx) & 0xc0) == 0xc0){
-				if (!(s.at(idx) & 0x80))
+			if (s[idx] < 0x80 || (s[idx] & 0xc0) == 0xc0){
+				if (s[idx] < 0x80)
 					idx++;
-				else if ((s.at(idx) & 0xF8) == 0xf0 && n == 3)
+				else if ((s[idx] & 0xF8) == 0xf0 && n == 3)
 					idx += n + 1;
-				else if ((s.at(idx) & 0xF0) == 0xe0 && n == 2)
+				else if ((s[idx] & 0xF0) == 0xe0 && n == 2)
 					idx += n + 1;
-				else if ((s.at(idx) & 0xE0) == 0xc0 && n == 1)
+				else if ((s[idx] & 0xE0) == 0xc0 && n == 1)
 					idx += n + 1;
 				break;
 			}

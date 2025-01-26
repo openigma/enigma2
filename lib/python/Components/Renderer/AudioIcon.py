@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from Components.Renderer.Renderer import Renderer
 from enigma import ePixmap
 from Tools.Directories import fileExists, SCOPE_GUISKIN, resolveFilename
@@ -60,4 +61,3 @@ class AudioIcon(Renderer):
 		if fileExists(pngname):
 			return pngname
 		return ""
-
